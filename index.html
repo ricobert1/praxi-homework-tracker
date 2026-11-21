@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homework Tracker for Praxi</title>
+<style>
+  :root { --bg:#16181d; --panel:#1f232b; --panel2:#262b35; --line:#323844; --text:#e6e6e6; --muted:#9aa3b2;
+          --due:#4ea1ff; --over:#ff6b6b; --done:#5fd38d; --chg:#ffb84d; --test:#f5d76e; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width:1500px; margin:0 auto; padding:14px 16px 40px; }
+  h1 { font-size:22px; margin:0; }
+  h2 { font-size:16px; margin:24px 0 8px; }
+  .top { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  button, input[type=date] { background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:4px 9px; font:inherit; cursor:pointer; }
+  button:hover { border-color:var(--due); }
+  #paste { border:2px dashed var(--line); border-radius:8px; padding:10px 14px; color:var(--muted); outline:none; flex:1; min-width:280px; }
+  #paste:focus { border-color:var(--due); }
+  .howto { color:var(--muted); font-size:13px; margin:4px 0 0; }
+  .msg { margin:6px 0; color:var(--muted); font-size:13px; }
+  .msg.err { color:var(--over); }
+  #driveBar { background:#3a2f12; border:1px solid var(--chg); border-radius:8px; padding:8px 12px; margin:8px 0; display:flex; gap:10px; align-items:center; }
+  #driveBar[hidden] { display:none; }
+  .muted { color:var(--muted); }
+
+  /* ---- grid ---- */
+  .gridwrap { overflow-x:auto; border:1px solid var(--line); border-radius:8px; }
+  .grid { display:grid; }
+  .cell { overflow-wrap:anywhere; }
+  .cell { border-right:1px solid var(--line); border-bottom:1px solid var(--line); padding:6px 8px; min-width:0; }
+  .hdr { position:sticky; top:0; background:var(--panel2); font-weight:600; z-index:1; }
+  .hdr small { display:block; font-weight:400; color:var(--muted); font-size:12px; }
+  .rowlbl { background:var(--panel); font-weight:600; }
+  .rowlbl small { display:block; font-weight:400; color:var(--muted); font-size:12px; }
+  .r-next > .cell { background:#16263d; }
+  .r-next > .rowlbl { background:#1d3557; color:#fff; }
+  .r-over > .cell { background:#2a1719; }
+  .r-over > .rowlbl { color:var(--over); }
+  .r-over .rowlbl button, .r-over .rowlbl input { font-size:12px; padding:2px 5px; margin-top:4px; width:100%; }
+  .r { display:contents; }
+  .empty { color:#4b5260; }
+
+  .it { display:grid; grid-template-columns:18px 1fr; gap:0 6px; padding:3px 0; }
+  .it + .it { border-top:1px dotted var(--line); }
+  .it input { width:16px; height:16px; margin:1px 0 0; cursor:pointer; }
+  .ttl { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; cursor:pointer; }
+  .open .ttl { display:block; }
+  .ttl:hover { color:#fff; }
+  .notmine { opacity:.4; }
+  .it > * { order:3; } .it > input { order:0; } .it > .ttl { order:1; } .it > .sign { order:2; }
+  .sign { grid-column:2; font-size:12px; color:var(--chg); cursor:pointer; display:flex; align-items:center; gap:4px; margin:2px 0; }
+  .sign input { width:14px; height:14px; margin:0; }
+  .sign.ok { color:var(--done); }
+  .changed .ttl { color:var(--chg); }
+  .flag { grid-column:2; font-size:12px; color:var(--chg); }
+  .flag.mine { color:var(--done); font-weight:600; }
+  .det { grid-column:2; display:none; font-size:13px; color:var(--muted); margin-top:3px; }
+  .open .det { display:block; }
+  .det ul { margin:2px 0; padding-left:16px; }
+  .det a { color:var(--due); }
+  .det table { border-collapse:collapse; margin:4px 0; }
+  .det td { border:1px solid var(--line); padding:2px 5px; vertical-align:top; }
+  .det tr.mine td { color:var(--done); font-weight:600; }
+  .ev { color:var(--test); font-weight:600; padding:2px 0; }
+  .meta { font-size:12px; color:var(--muted); }
+
+  /* ---- done ---- */
+  .donelist .it { max-width:900px; }
+  .donelist .ttl { color:var(--muted); text-decoration:line-through; }
+  details > summary { cursor:pointer; font-weight:600; margin:18px 0 6px; }
+  .foot { margin-top:26px; font-size:12px; color:var(--muted); display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .foot button { font-size:12px; padding:2px 7px; }
+  .foot a { color:var(--muted); }
+
+  /* ---- settings ---- */
+  dialog { background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:10px; padding:18px 20px; width:min(520px, calc(100vw - 32px)); }
+  dialog::backdrop { background:rgba(0,0,0,.6); }
+  dialog h2 { margin:0 0 12px; } dialog h3 { font-size:14px; margin:16px 0 6px; }
+  .fld { display:block; margin:10px 0; color:var(--muted); font-size:13px; }
+  .fld input { display:block; width:100%; margin-top:4px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 8px; font:inherit; }
+  .chk { display:flex; gap:8px; align-items:center; margin:5px 0; cursor:pointer; }
+  .small { font-size:12px; margin:4px 0; }
+  .dlgbtns { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+  #sSave { border-color:var(--due); }
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <h1>Homework Tracker <span class="muted" id="who"></span></h1>
+    <div id="paste" contenteditable="true"></div>
+    <button id="settingsBtn" title="Settings">⚙ Settings</button>
+  </div>
+  <div class="howto" id="howto"></div>
+  <dialog id="settings">
+    <form method="dialog" id="settingsForm">
+      <h2>Settings</h2>
+      <label class="fld">Student’s name, as it appears in Praxi sign-up sheets
+        <input id="sName" type="text" placeholder="e.g. Alex Smith" autocomplete="off">
+      </label>
+      <label class="fld">Other names they go by (optional, comma-separated)
+        <input id="sAlt" type="text" placeholder="e.g. Alexander Smith, Al" autocomplete="off">
+      </label>
+      <p class="muted small">Used only to find your student’s row in presentation sign-ups. Stays in this browser (and your backup folder, if you set one up).</p>
+      <h3>Parent signature checkbox</h3>
+      <label class="chk"><input type="checkbox" id="sPres"> The student’s presentations need a parent signature</label>
+      <div id="sClasses"></div>
+      <div class="dlgbtns"><button value="cancel" id="sCancel" formnovalidate>Cancel</button><button value="ok" id="sSave">Save</button></div>
+    </form>
+  </dialog>
+  <div id="pasteMsg" class="msg"></div>
+  <div id="driveBar" hidden><span id="driveMsg"></span><button id="driveBtn"></button></div>
+  <div id="out"></div>
+  <div class="foot"><span id="driveStatus"></span><button id="driveSetup">Set up folder save</button>
+    <span>· Not affiliated with Praxi. Everything stays on your computer. · <a href="https://github.com/ricobert1/praxi-homework-tracker" target="_blank" rel="noopener">About / updates</a></span></div>
+</main>
+
+<script>
+'use strict';
+/* ================= Core: parse + merge (no DOM-rendering, testable) ================= */
+const PraxiHW = (() => {
+  // Set from Settings via configure(): the student's name(s) and which classes need a parent signature.
+  let STUDENT_FULL = [], STUDENT_FIRST = [], DISPLAY = 'Your student';
+  let SIGN_CLASSES = [], SIGN_PRESENTATIONS = true;
+  function configure(cfg = {}) {
+    const names = (cfg.names || []).map(n => norm(n).toLowerCase()).filter(Boolean);
+    STUDENT_FULL = names.filter(n => n.includes(' '));
+    STUDENT_FIRST = [...new Set(names.map(n => n.split(' ')[0]))];
+    DISPLAY = cfg.names && cfg.names.length ? norm(cfg.names[0]).split(' ')[0] : 'Your student';
+    SIGN_CLASSES = cfg.signClasses || [];
+    SIGN_PRESENTATIONS = cfg.signPresentations !== false;
+  }
+  const isStudent = name => { const n = norm(name).toLowerCase(); return STUDENT_FULL.includes(n) || (!n.includes(' ') && STUDENT_FIRST.includes(n)); };
+  const DOW = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+  const MON = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+  const ASSIGNED_RE = /^Assigned:\s*([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),\s*(\d{4})$/;
+  const CLASS_RE = /^.{2,60}\s-\s(?:Mrs|Mr|Ms|Miss|Dr)\.?\s.{2,40}$/;
+  const DUE_RE = /^(?:homework\s+)?due(?:\s+date)?\b[\s,:]*(?:(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b)?[\s,]*(\d{1,2})\/(\d{1,2})\s*:?$/i;
+  const INLINE_DUE_RE = /\(\s*due\s+(\d{1,2})\/(\d{1,2})\s*\)/i;
+  const NOTE_RE = /no assigned homework|check praxi|^map:\s*(none|no map)/i;
+  const EVENT_KW = /\b(test|final|assessment|quiz|exam)\b/i;
+
+  const norm = s => (s || '').replace(/[ ​]/g, ' ').replace(/\s+/g, ' ').trim();
+  const key = s => norm(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const poss = n => /s$/i.test(n) ? n + '’' : n + '’s';
+  const pad = n => String(n).padStart(2, '0');
+  const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const fromIso = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const addDays = (s, n) => { const d = fromIso(s); d.setDate(d.getDate() + n); return iso(d); };
+  function hash(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); }
+
+  // m/d with no year: take the assigned year; roll forward if that lands > 60 days before assigned (Dec -> Jan).
+  function resolveMD(m, d, assignedISO) {
+    const a = fromIso(assignedISO);
+    let dt = new Date(a.getFullYear(), m - 1, d);
+    if ((a - dt) / 864e5 > 60) dt = new Date(a.getFullYear() + 1, m - 1, d);
+    return iso(dt);
+  }
+  // "this Thursday" = first Thursday after assigned; "next Thursday" = same, unless that is still in the assigned week (then +7).
+  function resolveRel(which, dowName, assignedISO) {
+    const target = DOW.indexOf(dowName.toLowerCase());
+    let d = fromIso(assignedISO); const start = d.getDay();
+    do { d.setDate(d.getDate() + 1); } while (d.getDay() !== target);
+    if (which.toLowerCase() === 'next' && target > start) d.setDate(d.getDate() + 7);
+    return iso(d);
+  }
+
+  function cleanText(node) {            // text of a node excluding nested lists/tables
+    const c = node.cloneNode(true);
+    c.querySelectorAll('ul,ol,table').forEach(x => x.remove());
+    return norm(c.textContent);
+  }
+  function linksOf(node) {
+    const out = [];
+    node.querySelectorAll('a[href]').forEach(a => {
+      if (a.closest('table')) return;
+      const href = a.getAttribute('href') || '';
+      if (/^https?:\/\//i.test(href)) out.push({ text: norm(a.textContent) || href, href });
+    });
+    return out;
+  }
+  function parseTable(t) {
+    const rows = [];
+    t.querySelectorAll('tr').forEach(tr => {
+      const cells = [...tr.children].map(td => norm(td.textContent));
+      if (cells.length < 2) return;
+      if (/^topic$/i.test(cells[0])) return;
+      const presenter = cells[cells.length - 1];
+      rows.push({ topic: cells.slice(0, -1).join(' '), presenter, mine: isStudent(presenter) });
+    });
+    return rows;
+  }
+
+  function parsePaste(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const lists = [];
+    let assigned = null, cur = null, due = null, dueDow = null, lastTask = null, looseTask = null, buf = '';
+
+    const mkItem = (title, d, dow) => ({ cls: cur.cls, assignedISO: assigned, due: d, dueDow: dow || null,
+      title, details: [], links: [], presenters: null, flags: [] });
+    const endLoose = () => { looseTask = null; };
+    function finishLine() {
+      const t = norm(buf); buf = '';
+      if (!t || !cur) return;
+      if (looseTask) { looseTask.details.push({ depth: 0, text: t }); return; }
+      if (NOTE_RE.test(t)) { cur.notes.push(t); return; }
+      if (EVENT_KW.test(t) && /(\d{1,2}\/\d{1,2})|\b(this|next)\s+\w+day\b/i.test(t)) { cur.lines.push(t); return; }
+      const it = mkItem(t, due, dueDow); it.loose = true; cur.items.push(it); lastTask = it;
+    }
+    function boundary() { finishLine(); endLoose(); }
+
+    function addLi(li) {
+      const title = cleanText(li);
+      const details = [];
+      li.querySelectorAll('li').forEach(sub => {
+        let depth = 0, p = sub.parentElement;
+        while (p && p !== li) { if (p.tagName === 'LI') depth++; p = p.parentElement; }
+        const t = cleanText(sub); if (t) details.push({ depth, text: t });
+      });
+      const links = linksOf(li);
+      const tbl = li.querySelector('table');
+      const presenters = tbl ? parseTable(tbl) : null;
+      if (presenters && (!title || links.some(l => key(l.text) === key(title)))) {   // table alone, or tucked under the sign-up link
+        if (lastTask && lastTask.due === due && title) links.forEach(l => lastTask.links.push(l));
+        if (lastTask && lastTask.due === due) lastTask.presenters = presenters;
+        else { const it = mkItem('Presentations', due, dueDow); it.presenters = presenters; cur.items.push(it); lastTask = it; }
+        return;
+      }
+      if (!details.length && links.length === 1 && key(title) === key(links[0].text)) {
+        if (lastTask && lastTask.due === due) { lastTask.links.push(links[0]); return; }
+      }
+      if (!details.length && NOTE_RE.test(title)) { cur.notes.push(title); return; }
+      if (!title && !details.length) return;
+      const it = mkItem(title || details[0].text, due, dueDow);
+      it.details = details; it.links = links; it.presenters = presenters;
+      cur.items.push(it); lastTask = it;
+    }
+
+    function walk(el) {
+      for (const n of el.childNodes) {
+        if (n.nodeType === 3) { if (cur) buf += n.textContent; continue; }
+        if (n.nodeType !== 1) continue;
+        const tag = n.tagName;
+        if (/^(SCRIPT|STYLE|SELECT|OPTION|BUTTON|INPUT|IMG|TEXTAREA)$/.test(tag)) continue;
+        if (tag === 'BR') {                       // blank line ends a Pre-Algebra lesson block; single BR = next line
+          if (norm(buf)) finishLine(); else if (looseTask && looseTask.details.length) endLoose();
+          continue;
+        }
+        const t = norm(n.textContent);
+        let m;
+        if (t.length < 40 && (m = t.match(ASSIGNED_RE))) {
+          boundary();
+          assigned = iso(new Date(+m[3], MON[m[1].toLowerCase()] - 1, +m[2]));
+          cur = null; due = null; continue;
+        }
+        if (assigned && tag === 'DIV' && t.length < 110 && CLASS_RE.test(t) && !n.querySelector('ul,ol,table,p,h4')) {
+          boundary();
+          cur = { assignedISO: assigned, cls: t, items: [], notes: [], lines: [], warnings: [] };
+          lists.push(cur); due = null; dueDow = null; lastTask = null; continue;
+        }
+        if (!cur) { walk(n); continue; }
+        if (t.length < 60 && (m = t.match(DUE_RE)) && !n.querySelector('ul,ol,table')) {
+          boundary();
+          due = resolveMD(+m[2], +m[3], assigned); dueDow = m[1] ? m[1].toLowerCase() : null;
+          if (dueDow && DOW[fromIso(due).getDay()] !== dueDow)
+            cur.warnings.push(`Heading says ${m[1]} but ${m[2]}/${m[3]} is a ${DOW[fromIso(due).getDay()]}`);
+          lastTask = null; continue;
+        }
+        if (/^H[1-6]$/.test(tag)) { boundary(); continue; }                 // "Thursday Week 11" etc.
+        if (t.length < 80 && /^homework\b/i.test(t) && !n.querySelector('ul,ol,table,u,h4,br')) { boundary(); continue; }
+        if (tag === 'UL' || tag === 'OL') { boundary(); [...n.children].forEach(li => { if (li.tagName === 'LI') addLi(li); }); continue; }
+        if (tag === 'TABLE') {
+          boundary(); const p = parseTable(n);
+          if (lastTask) lastTask.presenters = p; else { const it = mkItem('Presentations', due, dueDow); it.presenters = p; cur.items.push(it); lastTask = it; }
+          continue;
+        }
+        if (tag === 'U' && t && !n.querySelector('ul,ol')) {               // Pre-Algebra style "Lesson 34 (due 11/5)"
+          boundary();
+          const md = t.match(INLINE_DUE_RE);
+          const d = md ? resolveMD(+md[1], +md[2], assigned) : null;
+          const it = mkItem(norm(t.replace(INLINE_DUE_RE, '')) || t, d, null);
+          it.loose = true; cur.items.push(it); looseTask = it; lastTask = it; continue;
+        }
+        const block = /^(P|DIV|LI|TR|TD|BLOCKQUOTE)$/.test(tag);
+        if (block) boundary();
+        walk(n);
+        if (block) boundary();
+      }
+    }
+    walk(doc.body);
+    boundary();
+
+    for (const L of lists) postProcess(L);
+    return lists;
+  }
+
+  function postProcess(L) {
+    L.events = [];
+    const addEvents = (text, blockDue) => {
+      for (const s of text.split(/(?<=[.!?])\s+/)) {
+        if (!EVENT_KW.test(s)) continue;
+        let date = null, inferred = false, m;
+        if ((m = s.match(/\b(\d{1,2})\/(\d{1,2})\b/))) date = resolveMD(+m[1], +m[2], L.assignedISO);
+        else if ((m = s.match(/\b(this|next)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i))) { date = resolveRel(m[1], m[2], L.assignedISO); inferred = true; }
+        else if (/^study for/i.test(s) && blockDue) date = blockDue;
+        if (date) L.events.push({ cls: L.cls, date, inferred, text: norm(s).slice(0, 140), assignedISO: L.assignedISO });
+      }
+    };
+    for (const it of L.items) {
+      const full = [it.title, ...it.details.map(d => d.text)];
+      full.forEach(t => addEvents(t, it.due));
+      it.sig = hash(key(full.join(' ') + ' ' + (it.presenters || []).map(p => p.topic + p.presenter).join(' ')));
+      const noName = !STUDENT_FIRST.length;   // name not set yet: never hide anything as "not mine"
+      if (it.presenters && it.presenters.length) {
+        const mine = it.presenters.filter(p => p.mine);
+        if (mine.length) it.flags.push({ type: 'mine', text: `${DISPLAY} presents: ` + mine.map(p => p.topic.split(':')[0]).join('; ') });
+        else if (noName) it.flags.push({ type: 'confirm', text: "Add your student's name in Settings to find their row in this sign-up." });
+        else it.notMine = true;
+      } else if (/presentation/i.test(it.title)) {
+        const named = it.details.map(d => d.text.match(/^.+\s-\s([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)$/)).find(Boolean);
+        if (named && !noName) { if (!STUDENT_FIRST.includes(named[1].toLowerCase().split(' ')[0])) it.notMine = true; }
+        else if (!named) it.flags.push({ type: 'confirm', text: `No student name on this one — is it ${poss(DISPLAY)}? Check the sign-up.` });
+      }
+    }
+    L.lines.forEach(t => addEvents(t, null));
+  }
+
+  // Merge rule: for each (class, due date), the most recently assigned list wins. Undated items accumulate.
+  function buildModel(pastes) {
+    const listMap = new Map(), pasteKeys = [];
+    pastes.forEach((p, idx) => {
+      const ls = parsePaste(p.html);
+      pasteKeys[idx] = ls.map(L => L.assignedISO + '|' + L.cls);
+      ls.forEach(L => listMap.set(L.assignedISO + '|' + L.cls, L));
+    });
+    const lists = [...listMap.values()].sort((a, b) => a.assignedISO.localeCompare(b.assignedISO));
+    const blocks = new Map(), undated = new Map(), events = new Map(), notes = new Map(), occ = new Map();
+    const warnings = [];
+    for (const L of lists) {
+      const byDue = new Map();
+      for (const it of L.items) {
+        if (it.due) { if (!byDue.has(it.due)) byDue.set(it.due, []); byDue.get(it.due).push(it); }
+        else undated.set(L.cls + '|' + key(it.title), it);
+        const k = L.cls + '|' + it.sig;
+        if (!occ.has(k)) occ.set(k, []); occ.get(k).push({ due: it.due, src: L.assignedISO });
+      }
+      for (const [d, its] of byDue) blocks.set(L.cls + '|' + d, its);
+      for (const e of L.events) events.set(e.cls + '|' + e.date, e);
+      notes.set(L.cls, { src: L.assignedISO, notes: L.notes });
+      L.warnings.forEach(w => warnings.push(`${L.cls} (assigned ${L.assignedISO}): ${w}`));
+    }
+    const items = [];
+    for (const its of blocks.values()) {
+      const seen = {};
+      for (const it of its) {
+        const base = it.cls + '|' + it.due + '|' + key(it.title);
+        seen[base] = (seen[base] || 0) + 1;
+        it.id = hash(base + '|' + seen[base]);
+        // only specific text (has a number, e.g. "Chapter 11-15 Test") — generic weekly lines recur and would false-flag
+        const specific = /\d/.test(it.title + it.details.map(d => d.text).join(' '));
+        const later = !specific ? [] : (occ.get(it.cls + '|' + it.sig) || []).filter(o => o.due && o.due > it.due && o.src > it.assignedISO);
+        if (later.length) it.flags.push({ type: 'moved', text: `Same item is also listed as due ${later[later.length - 1].due} — the date may have moved.`, to: later[later.length - 1].due });
+        items.push(it);
+      }
+    }
+    for (const it of undated.values()) { it.id = hash(it.cls + '|undated|' + key(it.title)); items.push(it); }
+    // prune pastes whose every list was superseded by a later paste
+    const keep = pastes.filter((p, i) => pasteKeys[i].some(k => !pasteKeys.slice(i + 1).some(ks => ks.includes(k))));
+    return { lists, items, events: [...events.values()].sort((a, b) => a.date.localeCompare(b.date)),
+             notes, warnings, keepPastes: keep };
+  }
+
+  let nowFn = () => new Date();
+  const effDate = () => { const n = nowFn(); const d = iso(n); return n.getHours() >= 15 ? addDays(d, 1) : d; };
+  // Parent sign-off required: every item in a class picked in Settings, and (optionally) the student's presentations.
+  const needsSign = it => !it.notMine && (SIGN_CLASSES.includes(it.cls) || (SIGN_PRESENTATIONS && /presentation/i.test(it.title)));
+  function statusOf(it, statusMap, eff) {
+    if (it.notMine) return 'notmine';
+    const s = statusMap[it.id];
+    if (s && s.done && s.sig !== it.sig) return 'changed';
+    if (s && s.done) return needsSign(it) && !s.signed ? 'needsign' : 'done';
+    if (it.due && it.due < eff) return 'overdue';
+    return 'due';
+  }
+  function nextSchoolDay(items, eff) {
+    const ds = items.filter(i => i.due && i.due >= eff && !i.notMine).map(i => i.due).sort();
+    return ds[0] || null;
+  }
+
+  return { configure, display: () => DISPLAY, poss, parsePaste, buildModel, statusOf, needsSign, nextSchoolDay, effDate, setNow: f => { nowFn = f; },
+           now: () => nowFn(), iso, fromIso, addDays, DOW, norm, hash };
+})();
+
+/* ================= App: state, storage, Drive save, render ================= */
+const LS_KEY = 'praxihw.v1', LS_DRIVE_AT = 'praxihw.driveAt', DRIVE_FILE = 'praxi-homework-save.json';
+// Names used by the original single-family version; read once so existing checkmarks carry over.
+const OLD = { ls: 'bohw.v1', driveAt: 'bohw.driveAt', idb: 'bohw', file: 'bo-homework-save.json' };
+const STALE_DAYS = 3;
+const IS_MAC = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent || '');
+const KEY = IS_MAC ? '⌘' : 'Ctrl+';
+const PASTE_HINT = `Paste Praxi here (click, then ${KEY}V)`;
+let state = { pastes: [], status: {}, settings: {}, updated: null };
+let model = null;
+const openIds = new Set();
+
+const fmtDate = s => { const d = PraxiHW.fromIso(s); return `${PraxiHW.DOW[d.getDay()].slice(0, 3).replace(/^./, c => c.toUpperCase())} ${d.getMonth() + 1}/${d.getDate()}`; };
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const shortCls = c => c.split(' - ')[0].replace(/^MS\s+/, '');
+const teacher = c => (c.split(' - ')[1] || '');
+
+function stripHtml(html) { return html.replace(/\s(style|class|id|onclick|onblur)="[^"]*"/g, ''); }
+const hasData = s => !!(s && ((s.pastes && s.pastes.length) || (s.status && Object.keys(s.status).length)));
+
+// Union two saves: every paste kept; per item, the most recent check/uncheck wins.
+function mergeStates(a, b) {
+  const out = { pastes: [], status: {}, updated: null };
+  const sa = a.settings || {}, sb = b.settings || {};
+  out.settings = (sb.at || '') > (sa.at || '') ? sb : sa;       // newer Settings save wins
+  const seen = new Set();
+  for (const p of [...(a.pastes || []), ...(b.pastes || [])].sort((x, y) => (x.at || '').localeCompare(y.at || ''))) {
+    if (!seen.has(p.html)) { seen.add(p.html); out.pastes.push(p); }
+  }
+  for (const src of [a.status || {}, b.status || {}])
+    for (const [id, s] of Object.entries(src))
+      if (!out.status[id] || (s.at || '') > (out.status[id].at || '')) out.status[id] = s;
+  return out;
+}
+
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private window etc. */ } };
+
+function load() {
+  let raw = lsGet(LS_KEY);
+  if (!raw && lsGet(OLD.ls)) {                       // one-time carry-over from the original version
+    raw = lsGet(OLD.ls); lsSet(LS_KEY, raw);
+    if (lsGet(OLD.driveAt)) lsSet(LS_DRIVE_AT, lsGet(OLD.driveAt));
+  }
+  try { const s = JSON.parse(raw); if (s && s.pastes) state = s; } catch (e) { /* start fresh */ }
+  state.settings = state.settings || {};
+  PraxiHW.configure(state.settings);
+}
+function save() {
+  state.updated = new Date().toISOString();
+  lsSet(LS_KEY, JSON.stringify(state));
+  driveSaveSoon();
+}
+
+/* --- Folder save (Google Drive for Desktop or any synced folder): chosen once (handle kept in IndexedDB), then automatic --- */
+const idb = {
+  open(name = 'praxihw') { return new Promise((res, rej) => { const r = indexedDB.open(name, 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  async get(k, name) { const db = await this.open(name); return new Promise(res => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); }); },
+  async set(k, v) { const db = await this.open(); return new Promise(res => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = () => res(); t.onerror = () => res(); }); }
+};
+let dir = null, driveTimer = null;
+
+async function driveAllowed() { try { return dir && (await dir.queryPermission({ mode: 'readwrite' })) === 'granted'; } catch (e) { return false; } }
+async function driveRead() {
+  for (const name of [DRIVE_FILE, OLD.file]) {        // fall back to the original version's file name
+    try { const fh = await dir.getFileHandle(name); return JSON.parse(await (await fh.getFile()).text()); }
+    catch (e) { /* not there */ }
+  }
+  return null;
+}
+async function driveWrite() {
+  if (!(await driveAllowed())) { updateDriveUI(); return; }
+  try {
+    const fh = await dir.getFileHandle(DRIVE_FILE, { create: true });
+    const w = await fh.createWritable(); await w.write(JSON.stringify(state)); await w.close();
+    localStorage.setItem(LS_DRIVE_AT, new Date().toISOString());
+  } catch (e) { console.warn('Drive save failed', e); }
+  updateDriveUI();
+}
+function driveSaveSoon() { clearTimeout(driveTimer); driveTimer = setTimeout(driveWrite, 600); }
+
+// Pull the Drive copy in (merge, never overwrite), then push the merged result back.
+async function driveSync() {
+  const remote = await driveRead();
+  if (remote && remote.pastes) {
+    state = mergeStates(state, remote); lsSet(LS_KEY, JSON.stringify(state));
+    PraxiHW.configure(state.settings); rebuild(); render(); updateHeader();
+  }
+  await driveWrite();
+}
+async function driveSetup() {
+  if (!window.showDirectoryPicker) { alert('Saving to a folder needs Google Chrome or Microsoft Edge. Your checkmarks are still saved in this browser.'); return; }
+  try {
+    dir = await window.showDirectoryPicker({ id: 'praxihw', mode: 'readwrite' });
+    await idb.set('dir', dir); await driveSync();
+  } catch (e) { if (e.name !== 'AbortError') alert('Could not use that folder: ' + e.message); }
+}
+async function driveResume() {
+  try { if ((await dir.requestPermission({ mode: 'readwrite' })) === 'granted') await driveSync(); }
+  catch (e) { alert('Could not reconnect: ' + e.message); }
+  updateDriveUI();
+}
+
+async function updateDriveUI() {
+  const status = document.getElementById('driveStatus'), setup = document.getElementById('driveSetup');
+  const bar = document.getElementById('driveBar'), msg = document.getElementById('driveMsg'), btn = document.getElementById('driveBtn');
+  if (!dir) { status.textContent = 'Saved in this browser only. Backup folder (e.g. Google Drive): not set up.'; setup.textContent = 'Set up folder save'; bar.hidden = true; return; }
+  setup.textContent = 'Change folder';
+  const at = lsGet(LS_DRIVE_AT);
+  const ok = await driveAllowed();
+  status.textContent = `Folder save: “${dir.name}”` + (at ? `, last saved ${new Date(at).toLocaleString([], { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : '') + (ok ? '' : ' (paused)');
+  const ageDays = at ? (Date.now() - new Date(at)) / 864e5 : Infinity;
+  if (ok) { bar.hidden = true; return; }
+  if (!hasData(state)) { msg.textContent = `Your checkmarks are saved in “${dir.name}”.`; btn.textContent = 'Click to bring them back'; bar.hidden = false; }
+  else if (ageDays > STALE_DAYS) { msg.textContent = `Folder copy is ${Number.isFinite(ageDays) ? Math.floor(ageDays) + ' days' : 'not'} up to date.`; btn.textContent = 'Click to resume saving'; bar.hidden = false; }
+  else bar.hidden = true;
+}
+
+/* --- paste --- */
+function handlePaste(ev) {
+  ev.preventDefault();
+  const html = ev.clipboardData.getData('text/html');
+  const msg = document.getElementById('pasteMsg');
+  ev.target.textContent = PASTE_HINT; ev.target.blur();
+  if (!html) { msg.className = 'msg err'; msg.textContent = `That paste had no formatting. Copy straight from the Praxi page (${KEY}A, ${KEY}C) and try again.`; return; }
+  const lists = PraxiHW.parsePaste(html);
+  if (!lists.length) { msg.className = 'msg err'; msg.textContent = "Couldn't find any assignment lists in that paste. Is it the Praxi Homework page?"; return; }
+  const stripped = stripHtml(html);
+  if (!state.pastes.some(p => p.html === stripped)) state.pastes.push({ at: new Date().toISOString(), html: stripped });
+  rebuild(); save(); render();
+  const dates = [...new Set(lists.map(l => l.assignedISO))].sort();
+  msg.className = 'msg';
+  msg.textContent = `Read ${dates.length} assignment lists (${fmtDate(dates[0])} – ${fmtDate(dates[dates.length - 1])}). Showing ${model.items.length} items after merging.`;
+}
+
+/* --- status (uncheck is stored too, so a merge can't resurrect an old check) --- */
+// Whole record is rewritten on every change, so the newest-timestamp merge keeps the student's box and the parent box together.
+function setDone(it, done) {
+  const prev = state.status[it.id] || {};
+  state.status[it.id] = { done, sig: done ? it.sig : prev.sig, signed: !!prev.signed, at: new Date().toISOString() };
+  save(); render();
+}
+function setSigned(it, signed) {
+  const prev = state.status[it.id] || {};
+  state.status[it.id] = { done: !!prev.done, sig: prev.sig || it.sig, signed, at: new Date().toISOString() };
+  save(); render();
+}
+function markBefore(dateIso) {
+  const eff = PraxiHW.effDate(), at = new Date().toISOString(); let n = 0;
+  for (const it of model.items) {
+    if (it.due && it.due < dateIso && !it.notMine && PraxiHW.statusOf(it, state.status, eff) !== 'done') {
+      state.status[it.id] = { done: true, sig: it.sig, signed: true, at, bulk: true }; n++;   // history clear-out: assume signed
+    }
+  }
+  save(); render();
+  return n;
+}
+
+function rebuild() { model = PraxiHW.buildModel(state.pastes); state.pastes = model.keepPastes; }
+
+/* --- render: class columns x due-date rows --- */
+function displayTitle(it) {          // "Writing:" alone says nothing — add the first detail line
+  return /:$/.test(it.title) && it.details.length ? it.title + ' ' + it.details[0].text : it.title;
+}
+
+function itemEl(it, st, opts = {}) {
+  const row = el('div', 'it' + (st === 'notmine' ? ' notmine' : '') + (st === 'changed' ? ' changed' : '') + (openIds.has(it.id) ? ' open' : ''));
+  const cb = el('input'); cb.type = 'checkbox';
+  if (st === 'notmine') { cb.disabled = true; cb.title = 'Not ' + PraxiHW.poss(PraxiHW.display()); }
+  else { cb.checked = !!(state.status[it.id] || {}).done && st !== 'changed'; cb.onchange = () => setDone(it, cb.checked); cb.title = PraxiHW.display() + ': done'; }
+  row.appendChild(cb);
+  if (PraxiHW.needsSign(it)) {
+    const s = state.status[it.id] || {};
+    const lab = el('label', 'sign' + (s.signed ? ' ok' : ''));
+    const sb = el('input'); sb.type = 'checkbox'; sb.checked = !!s.signed; sb.onchange = () => setSigned(it, sb.checked);
+    lab.appendChild(sb); lab.appendChild(document.createTextNode(s.signed ? ' Parent signed' : ' Parent sign-off needed'));
+    row.dataset.sign = '1';
+    row.appendChild(lab);
+  }
+  const ttl = el('div', 'ttl');
+  if (opts.test) ttl.appendChild(el('span', 'ev', '📝 '));
+  ttl.appendChild(document.createTextNode(displayTitle(it)));
+  ttl.title = 'Click for details';
+  ttl.onclick = () => { openIds.has(it.id) ? openIds.delete(it.id) : openIds.add(it.id); row.classList.toggle('open'); };
+  row.appendChild(ttl);
+  if (opts.meta) row.appendChild(el('div', 'flag meta', opts.meta));
+  if (st === 'notmine') row.appendChild(el('div', 'flag meta', 'Not ' + PraxiHW.poss(PraxiHW.display())));
+  for (const f of it.flags) row.appendChild(el('div', 'flag' + (f.type === 'mine' ? ' mine' : ''), (f.type === 'mine' ? '★ ' : '⚠ ') + f.text.replace(/\d{4}-\d{2}-\d{2}/g, m => fmtDate(m))));
+  if (st === 'changed') row.appendChild(el('div', 'flag', '⚠ Teacher changed this after it was checked. Re-read, then check again.'));
+  const det = el('div', 'det');
+  det.appendChild(el('div', null, it.title));
+  if (it.details.length) {
+    const ul = el('ul');
+    it.details.forEach(d => { const li = el('li', null, d.text); li.style.marginLeft = (d.depth * 14) + 'px'; ul.appendChild(li); });
+    det.appendChild(ul);
+  }
+  it.links.forEach(l => { const a = el('a', null, l.text); a.href = l.href; a.target = '_blank'; a.rel = 'noopener'; det.appendChild(a); det.appendChild(el('br')); });
+  if (it.presenters) {
+    const t = el('table');
+    it.presenters.forEach(p => { const tr = el('tr', p.mine ? "mine" : ""); tr.appendChild(el('td', null, p.topic)); tr.appendChild(el('td', null, p.presenter)); t.appendChild(tr); });
+    det.appendChild(t);
+  }
+  det.appendChild(el('div', 'meta', `${it.cls} · posted ${fmtDate(it.assignedISO)}` + (it.due ? ` · due ${fmtDate(it.due)}` : '')));
+  row.appendChild(det);
+  return row;
+}
+
+function render() {
+  const out = document.getElementById('out'); out.innerHTML = '';
+  if (!model || !model.items.length) { out.appendChild(el('p', 'muted', 'No assignments yet. Paste the Praxi page above.')); return; }
+  const eff = PraxiHW.effDate(), today = PraxiHW.iso(PraxiHW.now()), tomorrow = PraxiHW.addDays(today, 1);
+  const st = it => PraxiHW.statusOf(it, state.status, eff);
+  const byDue = (a, b) => (a.due || '9999').localeCompare(b.due || '9999');
+
+  // Columns: classes in the order Praxi lists them
+  // (lists are sorted by date with Praxi's within-day order kept; newest day first, then any older-only classes)
+  const classes = [];
+  model.lists.slice().reverse().map(L => L.assignedISO).filter((d, i, a) => a.indexOf(d) === i)
+    .forEach(d => model.lists.filter(L => L.assignedISO === d).forEach(L => { if (!classes.includes(L.cls)) classes.push(L.cls); }));
+
+  const events = model.events.filter(e => e.date >= eff);
+  const next = PraxiHW.nextSchoolDay(model.items, eff);
+  const rows = [];
+  const overdue = model.items.filter(i => i.due && i.due < eff && ['overdue', 'changed', 'needsign'].includes(st(i))).sort(byDue);
+  if (overdue.length) rows.push({ kind: 'over', items: overdue });
+  const future = model.items.filter(i => i.due && i.due >= eff && st(i) !== 'done');
+  const dates = [...new Set([...future.filter(i => st(i) !== 'notmine').map(i => i.due), ...events.map(e => e.date)])].sort();
+  dates.forEach(d => rows.push({ kind: 'date', date: d, items: future.filter(i => i.due === d) }));
+  const undated = model.items.filter(i => !i.due && !['done', 'notmine'].includes(st(i)));
+  if (undated.length) rows.push({ kind: 'undated', items: undated });
+
+  const wrap = el('div', 'gridwrap'), grid = el('div', 'grid');
+  grid.style.gridTemplateColumns = `130px repeat(${classes.length}, minmax(220px, 1fr))`;
+  grid.style.minWidth = (130 + 220 * classes.length) + 'px';   // narrow window: scroll sideways instead of squashing
+  grid.appendChild(el('div', 'cell hdr', ''));
+  classes.forEach(c => { const h = el('div', 'cell hdr', shortCls(c)); h.appendChild(el('small', null, teacher(c))); grid.appendChild(h); });
+
+  for (const r of rows) {
+    const rw = el('div', 'r' + (r.kind === 'over' ? ' r-over' : r.date === next ? ' r-next' : ''));
+    const lbl = el('div', 'cell rowlbl');
+    if (r.kind === 'over') {
+      lbl.appendChild(el('div', null, `⚠ Overdue (${r.items.length})`));
+      lbl.appendChild(el('small', null, 'Mark all due before:'));
+      const dIn = el('input'); dIn.type = 'date'; dIn.value = eff;
+      const b = el('button', null, 'Mark Done');
+      b.onclick = () => { if (confirm(`Mark every item due before ${fmtDate(dIn.value)} as Done?`)) markBefore(dIn.value); };
+      lbl.appendChild(dIn); lbl.appendChild(b);
+    } else if (r.kind === 'undated') {
+      lbl.appendChild(el('div', null, 'No due date')); lbl.appendChild(el('small', null, 'Teacher gave no date — check'));
+    } else {
+      lbl.appendChild(el('div', null, (r.date === next ? '▶ ' : '') + fmtDate(r.date)));
+      const tag = r.date === today ? 'today' : r.date === tomorrow ? 'tomorrow' : r.date === next ? 'next school day' : '';
+      if (tag) lbl.appendChild(el('small', null, tag));
+    }
+    rw.appendChild(lbl);
+    for (const c of classes) {
+      const cell = el('div', 'cell');
+      const its = r.items.filter(i => i.cls === c);
+      const evs = r.kind === 'date' ? events.filter(e => e.cls === c && e.date === r.date) : [];
+      const matched = new Set();
+      const isTest = it => evs.find(e => { const k = e.text.slice(0, 30).toLowerCase(); return it.title.toLowerCase().includes(k); });
+      // the student's items first, faded "not mine" last
+      its.sort((a, b) => (st(a) === 'notmine') - (st(b) === 'notmine') || byDue(a, b));
+      its.forEach(it => {
+        const ev = isTest(it); if (ev) matched.add(ev);
+        const meta = st(it) === 'needsign' ? PraxiHW.display() + ' done — waiting on parent signature' + (r.kind === 'over' ? ` (due ${fmtDate(it.due)})` : '')
+                   : r.kind === 'over' ? `was due ${fmtDate(it.due)}` : r.kind === 'undated' ? `posted ${fmtDate(it.assignedISO)}` : '';
+        cell.appendChild(itemEl(it, st(it), { test: !!ev, meta }));
+      });
+      evs.filter(e => !matched.has(e)).forEach(e => cell.appendChild(el('div', 'ev', '📝 ' + e.text + (e.inferred ? ' (date worked out from “this/next”)' : ''))));
+      if (!cell.childNodes.length) cell.appendChild(el('span', 'empty', '—'));
+      rw.appendChild(cell);
+    }
+    grid.appendChild(rw);
+  }
+  wrap.appendChild(grid); out.appendChild(wrap);
+  if (!rows.length) out.appendChild(el('p', 'muted', 'Nothing to do. 🎉'));
+
+  // Done — uncheck to send back to the grid
+  const done = model.items.filter(i => st(i) === 'done').sort((a, b) => byDue(b, a));
+  const dd = el('details', 'donelist'); dd.appendChild(el('summary', null, `Done (${done.length}) — uncheck to put back`));
+  done.forEach(i => dd.appendChild(itemEl(i, 'done', { meta: `${shortCls(i.cls)} · ${i.due ? 'due ' + fmtDate(i.due) : 'no date'}` })));
+  out.appendChild(dd);
+
+  // Teacher notes (latest list per class) + parser warnings
+  const noteLines = [];
+  for (const [cls, n] of model.notes) n.notes.forEach(t => noteLines.push(`${shortCls(cls)} (${fmtDate(n.src)}): ${t}`));
+  if (noteLines.length || model.warnings.length) {
+    const nd = el('details'); nd.appendChild(el('summary', null, `Teacher notes (${noteLines.length + model.warnings.length})`));
+    noteLines.forEach(t => nd.appendChild(el('div', 'meta', t)));
+    model.warnings.forEach(t => nd.appendChild(el('div', 'flag', '⚠ ' + t)));
+    out.appendChild(nd);
+  }
+}
+
+/* --- settings --- */
+function updateHeader() {
+  const n = (state.settings.names || [])[0];
+  document.getElementById('who').textContent = n ? '· ' + PraxiHW.display() : '';
+  document.title = n ? `${PraxiHW.poss(PraxiHW.display())} Homework · Praxi Tracker` : 'Homework Tracker for Praxi';
+}
+function openSettings() {
+  const s = state.settings, names = s.names || [];
+  document.getElementById('sName').value = names[0] || '';
+  document.getElementById('sAlt').value = names.slice(1).join(', ');
+  document.getElementById('sPres').checked = s.signPresentations !== false;
+  const box = document.getElementById('sClasses'); box.innerHTML = '';
+  const classes = model ? [...new Set(model.lists.map(L => L.cls))].sort() : [];
+  if (!classes.length) box.appendChild(el('p', 'muted small', 'After your first paste, your student’s classes show up here so you can pick which ones need a parent signature on every assignment.'));
+  else {
+    box.appendChild(el('p', 'muted small', 'Every assignment in these classes needs a parent signature:'));
+    classes.forEach(c => {
+      const lab = el('label', 'chk'), cb = el('input'); cb.type = 'checkbox'; cb.value = c;
+      cb.checked = (s.signClasses || []).includes(c);
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(shortCls(c) + (teacher(c) ? ' — ' + teacher(c) : '')));
+      box.appendChild(lab);
+    });
+  }
+  document.getElementById('settings').showModal();
+  document.getElementById('sName').focus();
+}
+function saveSettings() {
+  const name = PraxiHW.norm(document.getElementById('sName').value);
+  const alt = document.getElementById('sAlt').value.split(',').map(PraxiHW.norm).filter(Boolean);
+  state.settings = {
+    names: name ? [name, ...alt] : alt,
+    signPresentations: document.getElementById('sPres').checked,
+    signClasses: [...document.querySelectorAll('#sClasses input:checked')].map(c => c.value),
+    at: new Date().toISOString()
+  };
+  PraxiHW.configure(state.settings); rebuild(); save(); render(); updateHeader();
+}
+
+async function init() {
+  load(); rebuild(); render(); updateHeader();
+  const paste = document.getElementById('paste');
+  paste.textContent = PASTE_HINT;
+  document.getElementById('howto').textContent =
+    `In Praxi → Homework: set Date From ≈ 2 weeks back and To ≈ 2 weeks ahead → Refresh → ${KEY}A, ${KEY}C → paste above. Works best in Chrome or Edge.`;
+  paste.addEventListener('paste', handlePaste);
+  paste.addEventListener('focus', e => { e.target.textContent = ''; });
+  paste.addEventListener('blur', e => { if (!PraxiHW.norm(e.target.textContent)) e.target.textContent = PASTE_HINT; });
+  document.getElementById('settingsBtn').onclick = openSettings;
+  document.getElementById('settingsForm').addEventListener('submit', e => { if (e.submitter && e.submitter.value === 'ok') saveSettings(); });
+  document.getElementById('driveSetup').onclick = driveSetup;
+  document.getElementById('driveBtn').onclick = driveResume;
+  try {
+    dir = (await idb.get('dir')) || null;
+    if (!dir) { dir = (await idb.get('dir', OLD.idb)) || null; if (dir) await idb.set('dir', dir); }   // carry over folder choice
+  } catch (e) { dir = null; }
+  if (!(state.settings.names || []).length && !dir) openSettings();          // first run
+  if (await driveAllowed()) await driveSync(); else updateDriveUI();
+  setInterval(render, 15 * 60 * 1000);   // roll "next school day" forward without a reload
+}
+if (!window.PRAXIHW_TEST) init();
+</script>
+</body>
+</html>
