@@ -29,6 +29,7 @@ Paste again whenever you like (daily, or a few times a week). Overlapping pastes
 - **Presentation sign-ups**: highlights your student's row and fades the ones that aren't theirs.
 - **Parent signature checkbox**: in ⚙ Settings, pick the classes where every assignment needs a parent signature, plus whether presentations do.
 - **Teacher notes** ("no homework tonight", etc.) are collected in one place.
+- **Up to 8+ classes**: columns narrow to fit, and the date column stays put if you scroll sideways.
 
 ## Where your data lives
 
@@ -44,7 +45,7 @@ Note that the hosted link and a local file keep **separate** saved data, because
 
 ## Known limits
 
-- It's tuned to how teachers at our school format their Praxi posts. The basic layout (an *Assigned* date, a *Class - Teacher* line, and *Due* headings) is Praxi's own, so it should work elsewhere. Unusual formats may land under **No due date** or get missed. If something parses wrong, open an issue with a description, and please replace any student names.
+- It's tuned to how teachers at our school format their Praxi posts. The basic layout (an *Assigned* date, a *Class - Teacher* line, and *Due* headings) is Praxi's own, so it should work elsewhere. Unusual formats may land under **No due date** or get missed. If something parses wrong, use the **Raise an issue** button at the bottom of the page (or [open an issue](https://github.com/ricobert1/praxi-homework-tracker/issues/new)). Cover or crop out student names in any screenshots.
 - Safari and Firefox work for the tracker itself, but not for folder save.
 - One student per browser. For two kids, use two browser profiles, or the hosted link for one and a downloaded copy for the other.
 

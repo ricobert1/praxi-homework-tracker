@@ -88,3 +88,15 @@ test('status: a teacher edit after checking shows as changed', () => {
   assert.equal(P.statusOf(it, { [it.id]: { done: true, sig: it.sig } }, '2026-11-17'), 'done');
   assert.equal(P.statusOf(it, { [it.id]: { done: true, sig: 'old' } }, '2026-11-17'), 'changed');
 });
+
+test('recognizes non-English teacher titles in class headers', () => {
+  const P = core();
+  const paste = `<div>Assigned: Nov 16, 2026</div>
+<div>MS Spanish I - Sra. Morales</div><p>Due Tuesday 11/17</p><ul><li>Conjugation worksheet</li></ul>
+<div>MS French I - Mme Dubois</div><p>Due Tuesday 11/17</p><ul><li>Dialogue practice</li></ul>
+<div>MS PE - Coach Reyes</div><p>Due Tuesday 11/17</p><ul><li>Fitness log</li></ul>`;
+  same(P.parsePaste(paste).map(l => [l.cls, l.items.map(i => i.title)]), [
+    ['MS Spanish I - Sra. Morales', ['Conjugation worksheet']],
+    ['MS French I - Mme Dubois', ['Dialogue practice']],
+    ['MS PE - Coach Reyes', ['Fitness log']]]);
+});

@@ -17,7 +17,18 @@
   button:hover { border-color:var(--due); }
   #paste { border:2px dashed var(--line); border-radius:8px; padding:10px 14px; color:var(--muted); outline:none; flex:1; min-width:280px; }
   #paste:focus { border-color:var(--due); }
-  .howto { color:var(--muted); font-size:13px; margin:4px 0 0; }
+  .about { margin:2px 0 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+  .about > summary { cursor:pointer; padding:8px 12px; font-weight:600; color:var(--text); }
+  .about > summary::after { content:' — about & how to use'; font-weight:400; color:var(--muted); font-size:13px; }
+  .about[open] > summary::after { content:''; }
+  .aboutbody { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:4px 22px; padding:0 14px 12px; color:var(--muted); font-size:13px; line-height:1.5; }
+  .aboutbody section:last-child { grid-column:1 / -1; }   /* "How to use" runs full width under the three short columns */
+  .aboutbody h3 { color:var(--text); font-size:13px; margin:6px 0 4px; text-transform:uppercase; letter-spacing:.04em; }
+  .aboutbody p, .aboutbody ul, .aboutbody ol { margin:0 0 6px; }
+  .aboutbody ul, .aboutbody ol { padding-left:18px; }
+  .aboutbody li { margin:2px 0; }
+  .aboutbody b, .aboutbody em { color:var(--text); }
+  .k { display:inline-block; border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 5px; font-size:12px; color:var(--text); background:var(--panel2); white-space:nowrap; }
   .msg { margin:6px 0; color:var(--muted); font-size:13px; }
   .msg.err { color:var(--over); }
   #driveBar { background:#3a2f12; border:1px solid var(--chg); border-radius:8px; padding:8px 12px; margin:8px 0; display:flex; gap:10px; align-items:center; }
@@ -31,7 +42,10 @@
   .cell { border-right:1px solid var(--line); border-bottom:1px solid var(--line); padding:6px 8px; min-width:0; }
   .hdr { position:sticky; top:0; background:var(--panel2); font-weight:600; z-index:1; }
   .hdr small { display:block; font-weight:400; color:var(--muted); font-size:12px; }
-  .rowlbl { background:var(--panel); font-weight:600; }
+  .rowlbl { background:var(--panel); font-weight:600; position:sticky; left:0; z-index:1; }   /* dates stay put when scrolling sideways */
+  .hdr.corner { left:0; z-index:2; }
+  .dense .cell { padding:5px 6px; font-size:13px; }
+  .dense .hdr { font-size:13px; }
   .rowlbl small { display:block; font-weight:400; color:var(--muted); font-size:12px; }
   .r-next > .cell { background:#16263d; }
   .r-next > .rowlbl { background:#1d3557; color:#fff; }
@@ -82,7 +96,10 @@
   .chk { display:flex; gap:8px; align-items:center; margin:5px 0; cursor:pointer; }
   .small { font-size:12px; margin:4px 0; }
   .dlgbtns { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
-  #sSave { border-color:var(--due); }
+  #sSave, dialog .primary { border-color:var(--due); }
+  #issue { font-size:13px; line-height:1.5; }
+  #issue p, #issue ol { margin:4px 0 8px; } #issue ol { padding-left:18px; } #issue li { margin:3px 0; }
+  #issue .k2 { color:var(--muted); }
 </style>
 </head>
 <body>
@@ -92,7 +109,43 @@
     <div id="paste" contenteditable="true"></div>
     <button id="settingsBtn" title="Settings">⚙ Settings</button>
   </div>
-  <div class="howto" id="howto"></div>
+  <details class="about" id="about">
+    <summary>Turns your student’s Praxi homework feed into one checklist: every class, sorted by due date.</summary>
+    <div class="aboutbody">
+      <section>
+        <h3>Why it exists</h3>
+        <p>Praxi shows homework as a running feed of daily teacher posts. To find out what’s due tomorrow, you have to scroll through two weeks of posts across every class and work out the dates yourself. And once you’ve checked something, there’s nowhere to mark it done. This page does that sorting for you.</p>
+      </section>
+      <section>
+        <h3>What it does</h3>
+        <ul>
+          <li>Lays out every assignment in a grid: classes across the top, due dates down the side, with the next school day highlighted.</li>
+          <li>Lets you check items off and remembers them. Overdue items rise to the top.</li>
+          <li>Flags anything a teacher edited after you checked it, items whose due date moved, and tests and quizzes (📝).</li>
+          <li>Finds your student’s row in presentation sign-ups and adds a parent-signature checkbox where you need one (⚙ Settings).</li>
+        </ul>
+      </section>
+      <section>
+        <h3>What it doesn’t do</h3>
+        <ul>
+          <li>It doesn’t log in to Praxi or fetch anything by itself. It only knows what you paste in.</li>
+          <li>It doesn’t submit work, see grades, or know whether a teacher received something. A checkmark means <em>you</em> marked it done.</li>
+          <li>It doesn’t send reminders or notifications, and it doesn’t share your data. Everything stays in this browser, plus a backup folder if you choose one.</li>
+          <li>It reads teacher posts the way they’re usually written. An oddly formatted post may land under “No due date” or be missed, so still glance at Praxi now and then.</li>
+        </ul>
+      </section>
+      <section>
+        <h3>How to use it</h3>
+        <ol>
+          <li><b>Copying from Praxi:</b> go to Praxi → <b>Homework</b>, set <b>Date From</b> and <b>To</b>, click <b>Refresh</b>, then press <span class="k">A</span> and <span class="k">C</span> to copy the whole page. Click the paste box above and press <span class="k">V</span>.</li>
+          <li><b>First time, load the semester:</b> set Date From to the first day of the semester and To about 2 weeks ahead. Paste. Everything from earlier weeks will show as overdue, so use <b>Mark Done</b> in the Overdue row (dated today) to clear the history in one click.</li>
+          <li><b>Then weekly (or daily during a busy stretch):</b> set Date From to about 2 weeks back and To about 2 weeks ahead, and paste. The overlap is deliberate: it picks up teacher edits and date changes. Pasting the same days twice is harmless, because the newest version of each list wins.</li>
+          <li><b>Each evening:</b> check off what’s done, look at the highlighted row for the next school day, and watch for 📝 tests and ⚠ changes.</li>
+          <li><b>More than one computer?</b> Use <b>Set up folder save</b> at the bottom and pick a Google Drive, iCloud or OneDrive folder on each computer. Use Chrome or Edge on Mac or Windows.</li>
+        </ol>
+      </section>
+    </div>
+  </details>
   <dialog id="settings">
     <form method="dialog" id="settingsForm">
       <h2>Settings</h2>
@@ -109,11 +162,31 @@
       <div class="dlgbtns"><button value="cancel" id="sCancel" formnovalidate>Cancel</button><button value="ok" id="sSave">Save</button></div>
     </form>
   </dialog>
+  <dialog id="issue">
+    <h2>Raise an issue</h2>
+    <p>Found something wrong, or have an idea? Issues go to the project’s GitHub page. You’ll need a free GitHub account to post.</p>
+    <h3>Reporting a problem</h3>
+    <ol>
+      <li><b>Describe what happened</b> and what you expected instead. For example: “Lesson 36 shows under No due date, but Praxi says due 12/2.”</li>
+      <li><b>Take a screenshot</b> of the tracker, and of the Praxi post if the problem is with how it was read (<span class="k2"></span>).</li>
+      <li><b>Hide names first.</b> Praxi pages and sign-up sheets show students’ full names, yours and other kids’. Crop or cover them before attaching.</li>
+      <li>Your browser and computer type are filled in for you.</li>
+    </ol>
+    <h3>Asking for a feature or change</h3>
+    <p>Say what you’d like it to do and why it would help, for example: “Let me hide a class I don’t need to track.”</p>
+    <p class="muted small">Please don’t paste raw Praxi pages into an issue. Issues are public.</p>
+    <div class="dlgbtns">
+      <button id="iClose">Close</button>
+      <button id="iFeature">Request a feature</button>
+      <button id="iBug" class="primary">Report a problem</button>
+    </div>
+  </dialog>
   <div id="pasteMsg" class="msg"></div>
   <div id="driveBar" hidden><span id="driveMsg"></span><button id="driveBtn"></button></div>
   <div id="out"></div>
   <div class="foot"><span id="driveStatus"></span><button id="driveSetup">Set up folder save</button>
-    <span>· Not affiliated with Praxi. Everything stays on your computer. · <a href="https://github.com/ricobert1/praxi-homework-tracker" target="_blank" rel="noopener">About / updates</a></span></div>
+    <span>· Not affiliated with Praxi. Everything stays on your computer. · <a href="https://github.com/ricobert1/praxi-homework-tracker" target="_blank" rel="noopener">About / updates</a></span>
+    <button id="issueBtn">Raise an issue</button></div>
 </main>
 
 <script>
@@ -135,7 +208,8 @@ const PraxiHW = (() => {
   const DOW = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
   const MON = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
   const ASSIGNED_RE = /^Assigned:\s*([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),\s*(\d{4})$/;
-  const CLASS_RE = /^.{2,60}\s-\s(?:Mrs|Mr|Ms|Miss|Dr)\.?\s.{2,40}$/;
+  // "Class Name - Title Lastname". Titles cover English, Spanish, French and German forms plus Coach/Prof./clergy.
+  const CLASS_RE = /^.{2,60}\s-\s(?:Mrs|Mr|Ms|Mx|Miss|Dr|Prof|Professor|Coach|Señora|Senora|Señorita|Senorita|Señor|Senor|Sra|Srta|Sr|Madame|Mademoiselle|Monsieur|Mme|Mlle|Frau|Herr|Rev|Fr|Father|Sister|Br|Brother)\.?\s.{2,40}$/;
   const DUE_RE = /^(?:homework\s+)?due(?:\s+date)?\b[\s,:]*(?:(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b)?[\s,]*(\d{1,2})\/(\d{1,2})\s*:?$/i;
   const INLINE_DUE_RE = /\(\s*due\s+(\d{1,2})\/(\d{1,2})\s*\)/i;
   const NOTE_RE = /no assigned homework|check praxi|^map:\s*(none|no map)/i;
@@ -399,7 +473,7 @@ const OLD = { ls: 'bohw.v1', driveAt: 'bohw.driveAt', idb: 'bohw', file: 'bo-hom
 const STALE_DAYS = 3;
 const IS_MAC = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent || '');
 const KEY = IS_MAC ? '⌘' : 'Ctrl+';
-const PASTE_HINT = `Paste Praxi here (click, then ${KEY}V)`;
+const PASTE_HINT = `Praxi → Homework → Refresh → ${KEY}A, ${KEY}C  ·  then click here and ${KEY}V`;
 let state = { pastes: [], status: {}, settings: {}, updated: null };
 let model = null;
 const openIds = new Set();
@@ -624,9 +698,12 @@ function render() {
   if (undated.length) rows.push({ kind: 'undated', items: undated });
 
   const wrap = el('div', 'gridwrap'), grid = el('div', 'grid');
-  grid.style.gridTemplateColumns = `130px repeat(${classes.length}, minmax(220px, 1fr))`;
-  grid.style.minWidth = (130 + 220 * classes.length) + 'px';   // narrow window: scroll sideways instead of squashing
-  grid.appendChild(el('div', 'cell hdr', ''));
+  // Columns narrow as classes are added (8 classes fit a 1280px laptop); below the minimum it scrolls sideways.
+  const n = classes.length, lblW = n > 6 ? 108 : 130, colMin = n > 6 ? 138 : n > 4 ? 170 : 220;
+  if (n > 6) grid.classList.add('dense');
+  grid.style.gridTemplateColumns = `${lblW}px repeat(${n}, minmax(${colMin}px, 1fr))`;
+  grid.style.minWidth = (lblW + colMin * n) + 'px';
+  grid.appendChild(el('div', 'cell hdr corner', ''));
   classes.forEach(c => { const h = el('div', 'cell hdr', shortCls(c)); h.appendChild(el('small', null, teacher(c))); grid.appendChild(h); });
 
   for (const r of rows) {
@@ -725,16 +802,34 @@ function saveSettings() {
   PraxiHW.configure(state.settings); rebuild(); save(); render(); updateHeader();
 }
 
+/* --- raise an issue: opens GitHub's new-issue page with a starter template --- */
+const REPO = 'https://github.com/ricobert1/praxi-homework-tracker';
+function openIssue(kind) {
+  const ua = navigator.userAgent;
+  const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Other';
+  const env = `Browser: ${browser} · Computer: ${IS_MAC ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'Other'} · Opened from: ${location.protocol === 'file:' ? 'downloaded file' : 'website'}`;
+  const body = kind === 'bug'
+    ? `**What happened?**\n\n\n**What did you expect instead?**\n\n\n**Screenshots** (cover or crop out student names first)\n\n\n---\n${env}`
+    : `**What would you like it to do?**\n\n\n**Why would it help?**\n\n\n---\n${env}`;
+  const title = kind === 'bug' ? 'Problem: ' : 'Idea: ';
+  window.open(`${REPO}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}&labels=${kind === 'bug' ? 'bug' : 'enhancement'}`, '_blank', 'noopener');
+  document.getElementById('issue').close();
+}
+
 async function init() {
   load(); rebuild(); render(); updateHeader();
   const paste = document.getElementById('paste');
   paste.textContent = PASTE_HINT;
-  document.getElementById('howto').textContent =
-    `In Praxi → Homework: set Date From ≈ 2 weeks back and To ≈ 2 weeks ahead → Refresh → ${KEY}A, ${KEY}C → paste above. Works best in Chrome or Edge.`;
+  document.querySelectorAll('.k').forEach(k => { k.textContent = KEY + k.textContent; });   // ⌘A on Mac, Ctrl+A on Windows
   paste.addEventListener('paste', handlePaste);
   paste.addEventListener('focus', e => { e.target.textContent = ''; });
   paste.addEventListener('blur', e => { if (!PraxiHW.norm(e.target.textContent)) e.target.textContent = PASTE_HINT; });
   document.getElementById('settingsBtn').onclick = openSettings;
+  document.querySelector('#issue .k2').textContent = IS_MAC ? 'on a Mac: ⌘⇧4, then drag' : 'on Windows: Win+Shift+S, then drag';
+  document.getElementById('issueBtn').onclick = () => document.getElementById('issue').showModal();
+  document.getElementById('iClose').onclick = () => document.getElementById('issue').close();
+  document.getElementById('iBug').onclick = () => openIssue('bug');
+  document.getElementById('iFeature').onclick = () => openIssue('feature');
   document.getElementById('settingsForm').addEventListener('submit', e => { if (e.submitter && e.submitter.value === 'ok') saveSettings(); });
   document.getElementById('driveSetup').onclick = driveSetup;
   document.getElementById('driveBtn').onclick = driveResume;
