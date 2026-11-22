@@ -1,0 +1,85 @@
+# Tags and publishes a GitHub Release whenever package.json's version on main
+# has no matching vX.Y.Z tag yet. Release notes come from that version's
+# section in CHANGELOG.md.
+#
+# Shipping a version: bump package.json + VERSION/footer in index.html, add a
+# CHANGELOG.md section, push to main. This workflow does the rest.
+#
+# Older versions: Actions → Release → Run workflow, with a version (e.g. 1.1.0)
+# and the commit to tag (e.g. 4356924).
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, without the v (e.g. 1.1.0). Blank = package.json"
+        required: false
+      ref:
+        description: "Commit to tag (blank = latest main)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out version and commit
+        id: v
+        env:
+          IN_VERSION: ${{ inputs.version }}
+          IN_REF: ${{ inputs.ref }}
+        run: |
+          version="${IN_VERSION:-$(node -p "require('./package.json').version")}"
+          ref="${IN_REF:-$GITHUB_SHA}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version"    >> "$GITHUB_OUTPUT"
+          echo "ref=$ref"         >> "$GITHUB_OUTPUT"
+
+      - name: Skip if already tagged
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.v.outputs.tag }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            echo "$TAG already exists, nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pull release notes from CHANGELOG.md
+        if: steps.check.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" { on=1; next }
+            on && /^## \[/        { exit }
+            on && /^\[[0-9.]+\]:/ { next }
+            on                    { print }
+          ' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "No '## [$VERSION]' section in CHANGELOG.md, so no release notes." > notes.md
+          fi
+          cat notes.md
+
+      - name: Create tag and release
+        if: steps.check.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.v.outputs.tag }}
+          REF: ${{ steps.v.outputs.ref }}
+        run: |
+          sha="$(git rev-parse "$REF" 2>/dev/null || echo "$REF")"
+          latest=$([ "$REF" = "$GITHUB_SHA" ] && echo true || echo false)
+          gh release create "$TAG" --target "$sha" --title "$TAG" --notes-file notes.md --latest="$latest"

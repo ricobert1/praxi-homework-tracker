@@ -8,6 +8,7 @@ All notable changes to Homework Tracker for Praxi. Versions follow [semantic ver
 - **🖨 Print list**: the grid as a one-page landscape checklist, shrinking to fit when needed. Shows only your student's items, with parent sign-off boxes, overdue items and teacher-change flags.
 - **🖨 Print calendar**: a two-week Monday–Saturday wall calendar. Homework is orange, papers and presentations are green, tests and quizzes are marked 📝. A day that's too full says "+N more — see list printout".
 - The version number now shows in the footer and links to this changelog.
+- Each new version is tagged and published as a GitHub Release automatically when it reaches `main`.
 
 ## [1.1.0] - 2026-11-21
 

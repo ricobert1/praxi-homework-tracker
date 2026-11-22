@@ -65,6 +65,8 @@ Fixtures must use made-up names. Real Praxi pages contain other students' names.
 
 See [CHANGELOG.md](CHANGELOG.md). The version number is shown in the app's footer.
 
+To ship a version, bump `package.json`, `VERSION` and the footer link in `index.html`, add a `## [x.y.z]` section to `CHANGELOG.md`, and push to `main`. The *Release* workflow then tags `vx.y.z` and publishes a GitHub Release using that changelog section.
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
