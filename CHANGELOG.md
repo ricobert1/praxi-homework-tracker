@@ -30,6 +30,6 @@ First public release.
 - Saves in the browser, with optional backup and sync to a Google Drive, iCloud or OneDrive folder (Chrome/Edge).
 - Works on Mac and Windows. Data from the original private version carries over automatically.
 
-[1.2.0]: https://github.com/ricobert1/praxi-homework-tracker/releases/tag/v1.2.0
-[1.1.0]: https://github.com/ricobert1/praxi-homework-tracker/compare/v1.0.0...v1.1.0
+[1.2.0]: https://github.com/ricobert1/praxi-homework-tracker/commit/9575fc3
+[1.1.0]: https://github.com/ricobert1/praxi-homework-tracker/commit/4356924
 [1.0.0]: https://github.com/ricobert1/praxi-homework-tracker/commit/7d5b8b2
