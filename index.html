@@ -97,6 +97,42 @@
   .small { font-size:12px; margin:4px 0; }
   .dlgbtns { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
   #sSave, dialog .primary { border-color:var(--due); }
+  .topbtns { display:flex; gap:6px; flex-wrap:wrap; }
+
+  /* ---- print (white paper, landscape letter) ---- */
+  #print { display:none; }
+  #print.measure { display:block; position:absolute; left:-20000px; top:0; width:10.2in; }
+  @page { size: letter landscape; margin: .4in; }
+  @media print {
+    body { background:#fff; }
+    main { display:none; }
+    #print { display:block; position:static; width:auto; }
+  }
+  #print { color:#000; background:#fff; font:11px/1.25 "Segoe UI", Helvetica, Arial, sans-serif;
+           -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .pl-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+  .pl-head h1 { font-size:16px; margin:0; }
+  .pl-grid { display:grid; border-top:1px solid #000; border-left:1px solid #000; }
+  .pl-grid > div { border-right:1px solid #000; border-bottom:1px solid #000; padding:3px 5px; min-width:0; overflow-wrap:anywhere; }
+  .pl-hdr { font-weight:700; background:#e6e6e6; }
+  .pl-hdr small, .pl-lbl small { display:block; font-weight:400; font-size:10px; }
+  .pl-lbl { font-weight:700; }
+  .pl-next { background:#eef3fb; }
+  .pl-it { display:flex; gap:4px; padding:1px 0; }
+  .pl-it + .pl-it { border-top:1px dotted #999; }
+  .pl-box { flex:none; font-size:12px; line-height:1; }
+  .pl-sub { font-size:10px; color:#333; }
+  .pl-ev { font-weight:700; }
+  .cal-title { text-align:center; font:700 24px/1.1 Georgia, "Times New Roman", serif; letter-spacing:1px; margin:0 0 6px; }
+  .cal-top { display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:12px; margin-bottom:6px; }
+  .hl-o { background:#ffb347; padding:0 3px; } .hl-g { background:#3fae8e; color:#000; padding:0 3px; }
+  .cal { display:grid; grid-template-columns:repeat(6, 1fr); border-top:1.5px solid #000; border-left:1.5px solid #000; }
+  .cal-dow { text-align:center; font-weight:700; font-size:12px; padding:2px 0; border-right:1.5px solid #000; border-bottom:1.5px solid #000; }
+  .cal-day { height:3.3in; overflow:hidden; border-right:1.5px solid #000; border-bottom:1.5px solid #000; padding:2px 4px; font-size:10px; line-height:1.2; }
+  .cal-num { font-size:11px; }
+  .cal-day > div { margin-top:2px; padding:1px 3px; border-radius:2px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .cal-day > .cal-num { padding:0; }
+  .cal-day .done { text-decoration:line-through; opacity:.6; }
   #issue { font-size:13px; line-height:1.5; }
   #issue p, #issue ol { margin:4px 0 8px; } #issue ol { padding-left:18px; } #issue li { margin:3px 0; }
   #issue .k2 { color:var(--muted); }
@@ -107,7 +143,7 @@
   <div class="top">
     <h1>Homework Tracker <span class="muted" id="who"></span></h1>
     <div id="paste" contenteditable="true"></div>
-    <button id="settingsBtn" title="Settings">⚙ Settings</button>
+    <div class="topbtns"><button id="printList" title="Print the grid on one landscape page">🖨 Print list</button><button id="printCal" title="Print a two-week calendar">🖨 Print calendar</button><button id="settingsBtn" title="Settings">⚙ Settings</button></div>
   </div>
   <details class="about" id="about">
     <summary>Turns your student’s Praxi homework feed into one checklist: every class, sorted by due date.</summary>
@@ -123,6 +159,7 @@
           <li>Lets you check items off and remembers them. Overdue items rise to the top.</li>
           <li>Flags anything a teacher edited after you checked it, items whose due date moved, and tests and quizzes (📝).</li>
           <li>Finds your student’s row in presentation sign-ups and adds a parent-signature checkbox where you need one (⚙ Settings).</li>
+          <li>Prints on one landscape page: a <b>checklist</b> of the grid, or a two-week <b>calendar</b> for the fridge.</li>
         </ul>
       </section>
       <section>
@@ -185,9 +222,10 @@
   <div id="driveBar" hidden><span id="driveMsg"></span><button id="driveBtn"></button></div>
   <div id="out"></div>
   <div class="foot"><span id="driveStatus"></span><button id="driveSetup">Set up folder save</button>
-    <span>· Not affiliated with Praxi. Everything stays on your computer. · <a href="https://github.com/ricobert1/praxi-homework-tracker" target="_blank" rel="noopener">About / updates</a></span>
+    <span>· Not affiliated with Praxi. Everything stays on your computer. · <a href="https://github.com/ricobert1/praxi-homework-tracker" target="_blank" rel="noopener">About / updates</a> · <a href="https://github.com/ricobert1/praxi-homework-tracker/blob/main/CHANGELOG.md" target="_blank" rel="noopener" id="ver">v1.2.0</a></span>
     <button id="issueBtn">Raise an issue</button></div>
 </main>
+<div id="print"></div>
 
 <script>
 'use strict';
@@ -673,12 +711,11 @@ function itemEl(it, st, opts = {}) {
   return row;
 }
 
-function render() {
-  const out = document.getElementById('out'); out.innerHTML = '';
-  if (!model || !model.items.length) { out.appendChild(el('p', 'muted', 'No assignments yet. Paste the Praxi page above.')); return; }
+const byDue = (a, b) => (a.due || '9999').localeCompare(b.due || '9999');
+// Shared by the screen grid and both printouts: overdue row, one row per upcoming date, undated row.
+function gridModel() {
   const eff = PraxiHW.effDate(), today = PraxiHW.iso(PraxiHW.now()), tomorrow = PraxiHW.addDays(today, 1);
   const st = it => PraxiHW.statusOf(it, state.status, eff);
-  const byDue = (a, b) => (a.due || '9999').localeCompare(b.due || '9999');
 
   // Columns: classes in the order Praxi lists them
   // (lists are sorted by date with Praxi's within-day order kept; newest day first, then any older-only classes)
@@ -696,6 +733,22 @@ function render() {
   dates.forEach(d => rows.push({ kind: 'date', date: d, items: future.filter(i => i.due === d) }));
   const undated = model.items.filter(i => !i.due && !['done', 'notmine'].includes(st(i)));
   if (undated.length) rows.push({ kind: 'undated', items: undated });
+  return { eff, today, tomorrow, st, classes, events, next, rows };
+}
+// A test/quiz line that is really one of the cell's items gets drawn as that item, not twice.
+function matchEvents(its, evs) {
+  const matched = new Set(), testIds = new Set();
+  its.forEach(it => {
+    const ev = evs.find(e => it.title.toLowerCase().includes(e.text.slice(0, 30).toLowerCase()));
+    if (ev) { matched.add(ev); testIds.add(it.id); }
+  });
+  return { testIds, extra: evs.filter(e => !matched.has(e)) };
+}
+
+function render() {
+  const out = document.getElementById('out'); out.innerHTML = '';
+  if (!model || !model.items.length) { out.appendChild(el('p', 'muted', 'No assignments yet. Paste the Praxi page above.')); return; }
+  const { eff, today, tomorrow, st, classes, events, next, rows } = gridModel();
 
   const wrap = el('div', 'gridwrap'), grid = el('div', 'grid');
   // Columns narrow as classes are added (8 classes fit a 1280px laptop); below the minimum it scrolls sideways.
@@ -728,17 +781,15 @@ function render() {
       const cell = el('div', 'cell');
       const its = r.items.filter(i => i.cls === c);
       const evs = r.kind === 'date' ? events.filter(e => e.cls === c && e.date === r.date) : [];
-      const matched = new Set();
-      const isTest = it => evs.find(e => { const k = e.text.slice(0, 30).toLowerCase(); return it.title.toLowerCase().includes(k); });
+      const { testIds, extra } = matchEvents(its, evs);
       // the student's items first, faded "not mine" last
       its.sort((a, b) => (st(a) === 'notmine') - (st(b) === 'notmine') || byDue(a, b));
       its.forEach(it => {
-        const ev = isTest(it); if (ev) matched.add(ev);
         const meta = st(it) === 'needsign' ? PraxiHW.display() + ' done — waiting on parent signature' + (r.kind === 'over' ? ` (due ${fmtDate(it.due)})` : '')
                    : r.kind === 'over' ? `was due ${fmtDate(it.due)}` : r.kind === 'undated' ? `posted ${fmtDate(it.assignedISO)}` : '';
-        cell.appendChild(itemEl(it, st(it), { test: !!ev, meta }));
+        cell.appendChild(itemEl(it, st(it), { test: testIds.has(it.id), meta }));
       });
-      evs.filter(e => !matched.has(e)).forEach(e => cell.appendChild(el('div', 'ev', '📝 ' + e.text + (e.inferred ? ' (date worked out from “this/next”)' : ''))));
+      extra.forEach(e => cell.appendChild(el('div', 'ev', '📝 ' + e.text + (e.inferred ? ' (date worked out from “this/next”)' : ''))));
       if (!cell.childNodes.length) cell.appendChild(el('span', 'empty', '—'));
       rw.appendChild(cell);
     }
@@ -802,12 +853,125 @@ function saveSettings() {
   PraxiHW.configure(state.settings); rebuild(); save(); render(); updateHeader();
 }
 
+/* --- printouts: white paper, landscape letter. Built into #print, then the browser print dialog. --- */
+const PAGE_W = 10.2 * 96, PAGE_H = 7.7 * 96;          // letter landscape minus .4in margins, CSS px
+// Calendar boxes are small: long class names shorten to their first word ("Computer Science" → "Computer").
+const abbr = c => { const s = shortCls(c); return s.length > 12 ? s.split(/\s+/)[0] : s; };
+const stamp = () => PraxiHW.now().toLocaleString([], { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+const heading = () => (state.settings.names || []).length ? `${PraxiHW.poss(PraxiHW.display())} Homework` : 'Homework';
+// GREEN on the calendar: the student's presentation days, and assignments that say to bring a draft/paper/essay/copy.
+const isPaper = it => !it.notMine && (/presentation/i.test(it.title) || it.flags.some(f => f.type === 'mine')
+  || /\bbring\b[^.]*\b(draft|paper|essay|copy)\b/i.test([it.title, ...it.details.map(d => d.text)].join(' ')));
+
+function printList() {
+  const P = document.getElementById('print'); P.innerHTML = '';
+  const { st, classes, events, next, rows, today, tomorrow } = gridModel();
+  const head = el('div', 'pl-head'); head.appendChild(el('h1', null, heading())); head.appendChild(el('span', null, 'Printed ' + stamp()));
+  P.appendChild(head);
+  const g = el('div', 'pl-grid'); g.style.gridTemplateColumns = `80px repeat(${classes.length}, 1fr)`;
+  g.appendChild(el('div', 'pl-hdr', ''));
+  classes.forEach(c => { const h = el('div', 'pl-hdr', shortCls(c)); h.appendChild(el('small', null, teacher(c))); g.appendChild(h); });
+  for (const r of rows) {
+    const nx = r.kind === 'date' && r.date === next ? ' pl-next' : '';
+    const lbl = el('div', 'pl-lbl' + nx,
+      r.kind === 'over' ? 'Overdue' : r.kind === 'undated' ? 'No due date' : (r.date === next ? '▶ ' : '') + fmtDate(r.date));
+    if (r.kind === 'date') { const t = r.date === today ? 'today' : r.date === tomorrow ? 'tomorrow' : r.date === next ? 'next school day' : ''; if (t) lbl.appendChild(el('small', null, t)); }
+    g.appendChild(lbl);
+    for (const c of classes) {
+      const cell = el('div', nx.trim());
+      const its = r.items.filter(i => i.cls === c && st(i) !== 'notmine').sort(byDue);   // paper copy: the student's items only
+      const evs = r.kind === 'date' ? events.filter(e => e.cls === c && e.date === r.date) : [];
+      const { testIds, extra } = matchEvents(its, evs);
+      its.forEach(it => {
+        const s = st(it), row = el('div', 'pl-it');
+        row.appendChild(el('span', 'pl-box', s === 'needsign' ? '☑' : '☐'));
+        const body = el('div');
+        body.appendChild(el('div', testIds.has(it.id) ? 'pl-ev' : null, (testIds.has(it.id) ? '📝 ' : '') + displayTitle(it)));
+        const sub = [];
+        if (r.kind === 'over') sub.push('was due ' + fmtDate(it.due));
+        if (s === 'needsign') sub.push('done — needs parent signature');
+        else if (PraxiHW.needsSign(it)) sub.push('☐ parent sign-off');
+        if (s === 'changed') sub.push('teacher changed this — re-read');
+        it.flags.forEach(f => sub.push((f.type === 'mine' ? '★ ' : '⚠ ') + f.text.replace(/\d{4}-\d{2}-\d{2}/g, m => fmtDate(m))));
+        if (sub.length) body.appendChild(el('div', 'pl-sub', sub.join(' · ')));
+        row.appendChild(body); cell.appendChild(row);
+      });
+      extra.forEach(e => cell.appendChild(el('div', 'pl-ev', '📝 ' + e.text)));
+      g.appendChild(cell);
+    }
+  }
+  P.appendChild(g);
+  if (!rows.length) P.appendChild(el('p', null, 'Nothing to do.'));
+  fitAndPrint(P);
+}
+
+// Two weeks, Mon–Sat, starting the Monday of this week (Sunday looks ahead to tomorrow's week).
+function calWeeks() {
+  const t = PraxiHW.now(), dow = t.getDay();
+  const mon = PraxiHW.addDays(PraxiHW.iso(t), dow === 0 ? 1 : 1 - dow);
+  return [0, 7].map(o => [0, 1, 2, 3, 4, 5].map(i => PraxiHW.addDays(mon, o + i)));
+}
+function printCalendar() {
+  const P = document.getElementById('print'); P.innerHTML = '';
+  const eff = PraxiHW.effDate(), st = it => PraxiHW.statusOf(it, state.status, eff);
+  const weeks = calWeeks(), first = weeks[0][0], last = weeks[1][5];
+  P.appendChild(el('div', 'cal-title', heading().toUpperCase() + ' CALENDAR'));
+  const top = el('div', 'cal-top');
+  const f = PraxiHW.fromIso(first);
+  top.appendChild(el('span', null, `Week starting: ${f.getMonth() + 1}/${f.getDate()}/${String(f.getFullYear()).slice(2)}`));
+  top.appendChild(el('span', 'hl-o', 'ORANGE = Homework Due'));
+  top.appendChild(el('span', 'hl-g', 'GREEN = Paper / Presentation Due'));
+  top.appendChild(el('span', null, '📝 = test/quiz · printed ' + stamp()));
+  P.appendChild(top);
+  const cal = el('div', 'cal');
+  ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].forEach(d => cal.appendChild(el('div', 'cal-dow', d)));
+  const items = model.items.filter(i => i.due && i.due >= first && i.due <= last && !i.notMine);
+  const events = model.events.filter(e => e.date >= first && e.date <= last);
+  for (const wk of weeks) for (const d of wk) {
+    const box = el('div', 'cal-day');
+    box.appendChild(el('div', 'cal-num', String(PraxiHW.fromIso(d).getDate())));
+    const its = items.filter(i => i.due === d);
+    const { testIds, extra } = matchEvents(its, events.filter(e => e.date === d));
+    extra.forEach(e => box.appendChild(el('div', 'pl-ev', `📝 ${abbr(e.cls)}: ${e.text}`)));
+    // tests and papers first, then by class
+    its.sort((a, b) => (testIds.has(b.id) - testIds.has(a.id)) || (isPaper(b) - isPaper(a)) || a.cls.localeCompare(b.cls));
+    its.forEach(it => {
+      box.appendChild(el('div', (isPaper(it) ? 'hl-g' : 'hl-o') + (st(it) === 'done' ? ' done' : ''),
+        `${testIds.has(it.id) ? '📝 ' : ''}${abbr(it.cls)}: ${displayTitle(it)}`));
+    });
+    cal.appendChild(box);
+  }
+  P.appendChild(cal);
+  fitAndPrint(P);
+}
+
+// List: shrink (down to 70%) so it fits one landscape page; beyond that it flows onto page 2.
+// Calendar boxes are fixed-height; a box that overflows says so instead of silently cutting.
+function fitAndPrint(P) {
+  P.style.zoom = ''; P.style.width = ''; P.className = 'measure';
+  if (!P.querySelector('.cal')) {        // shrinking widens the text lines, so re-measure at each step
+    let z = 1;
+    const fits = () => { P.style.zoom = z; P.style.width = (PAGE_W / z) + 'px'; return P.getBoundingClientRect().height <= PAGE_H; };
+    while (!fits() && z > 0.7) z = Math.round((z - 0.02) * 100) / 100;
+    P.style.width = '';
+  }
+  // Calendar day too full: drop items from the bottom and say how many are on the list printout.
+  P.querySelectorAll('.cal-day').forEach(b => {
+    if (b.scrollHeight <= b.clientHeight + 1) return;
+    const more = el('div', 'pl-ev'); b.appendChild(more); let n = 0;
+    while (b.scrollHeight > b.clientHeight + 1 && b.children.length > 3) { more.previousElementSibling.remove(); n++; more.textContent = `+${n} more — see list printout`; }
+  });
+  P.className = '';
+  if (!window.PRAXIHW_TEST && !window.PRAXIHW_NOPRINT) window.print();
+}
+
 /* --- raise an issue: opens GitHub's new-issue page with a starter template --- */
 const REPO = 'https://github.com/ricobert1/praxi-homework-tracker';
+const VERSION = '1.2.0';   // keep in step with package.json, the footer link and CHANGELOG.md
 function openIssue(kind) {
   const ua = navigator.userAgent;
   const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Other';
-  const env = `Browser: ${browser} · Computer: ${IS_MAC ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'Other'} · Opened from: ${location.protocol === 'file:' ? 'downloaded file' : 'website'}`;
+  const env = `Version: ${VERSION} · Browser: ${browser} · Computer: ${IS_MAC ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'Other'} · Opened from: ${location.protocol === 'file:' ? 'downloaded file' : 'website'}`;
   const body = kind === 'bug'
     ? `**What happened?**\n\n\n**What did you expect instead?**\n\n\n**Screenshots** (cover or crop out student names first)\n\n\n---\n${env}`
     : `**What would you like it to do?**\n\n\n**Why would it help?**\n\n\n---\n${env}`;
@@ -825,6 +989,9 @@ async function init() {
   paste.addEventListener('focus', e => { e.target.textContent = ''; });
   paste.addEventListener('blur', e => { if (!PraxiHW.norm(e.target.textContent)) e.target.textContent = PASTE_HINT; });
   document.getElementById('settingsBtn').onclick = openSettings;
+  const nothing = () => { const m = document.getElementById('pasteMsg'); m.className = 'msg err'; m.textContent = 'Nothing to print yet. Paste the Praxi page first.'; };
+  document.getElementById('printList').onclick = () => model && model.items.length ? printList() : nothing();
+  document.getElementById('printCal').onclick = () => model && model.items.length ? printCalendar() : nothing();
   document.querySelector('#issue .k2').textContent = IS_MAC ? 'on a Mac: ⌘⇧4, then drag' : 'on Windows: Win+Shift+S, then drag';
   document.getElementById('issueBtn').onclick = () => document.getElementById('issue').showModal();
   document.getElementById('iClose').onclick = () => document.getElementById('issue').close();

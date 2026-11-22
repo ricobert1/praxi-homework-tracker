@@ -28,6 +28,7 @@ Paste again whenever you like (daily, or a few times a week). Overlapping pastes
 - **Tests and quizzes** are pulled out of the text and marked 📝, including "this Friday" / "next Tuesday" wording.
 - **Presentation sign-ups**: highlights your student's row and fades the ones that aren't theirs.
 - **Parent signature checkbox**: in ⚙ Settings, pick the classes where every assignment needs a parent signature, plus whether presentations do.
+- **Print list / Print calendar**: a one-page landscape checklist of the grid, or a two-week Mon–Sat wall calendar (homework in orange, papers and presentations in green, 📝 tests).
 - **Teacher notes** ("no homework tonight", etc.) are collected in one place.
 - **Up to 8+ classes**: columns narrow to fit, and the date column stays put if you scroll sideways.
 
@@ -59,6 +60,10 @@ npm test
 ```
 
 Fixtures must use made-up names. Real Praxi pages contain other students' names.
+
+## Changes
+
+See [CHANGELOG.md](CHANGELOG.md). The version number is shown in the app's footer.
 
 ## License
 
