@@ -123,6 +123,22 @@
   .pl-box { flex:none; font-size:12px; line-height:1; }
   .pl-sub { font-size:10px; color:#333; }
   .pl-ev { font-weight:700; }
+  .pl-page { break-inside:avoid; page-break-inside:avoid; }      /* a class group moves whole to the next page if it won't fit */
+  .pl-page + .pl-page { margin-top:18px; }
+  .pl-detail .pl-it { break-inside:avoid; page-break-inside:avoid; }
+  .pl-det { margin:2px 0 1px; padding-left:13px; font-size:10px; } .pl-det li { margin:1px 0; }
+
+  /* ---- print menu ---- */
+  .printwrap { position:relative; }
+  .pmenu { position:absolute; right:0; top:calc(100% + 6px); z-index:20; width:300px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:6px; box-shadow:0 8px 24px rgba(0,0,0,.5); font-size:13px; }
+  .pmenu[hidden] { display:none; }
+  .pmenu button.opt { display:block; width:100%; text-align:left; border:0; background:none; padding:7px 9px; border-radius:6px; }
+  .pmenu button.opt:hover, .pmenu button.opt:focus { background:var(--panel2); outline:none; }
+  .pmenu button.opt b { display:block; } .pmenu button.opt span { color:var(--muted); font-size:12px; }
+  .pmenu .last b::after { content:' ✓'; color:var(--done); }
+  .pmenu hr { border:0; border-top:1px solid var(--line); margin:6px 2px; }
+  .pmenu .rng { display:flex; flex-wrap:wrap; gap:4px 10px; padding:2px 9px 6px; color:var(--muted); font-size:12px; align-items:center; }
+  .pmenu .rng label { display:flex; gap:4px; align-items:center; color:var(--text); cursor:pointer; }
   .cal-title { text-align:center; font:700 24px/1.1 Georgia, "Times New Roman", serif; letter-spacing:1px; margin:0 0 6px; }
   .cal-top { display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:12px; margin-bottom:6px; }
   .hl-o { background:#ffb347; padding:0 3px; } .hl-g { background:#3fae8e; color:#000; padding:0 3px; }
@@ -143,7 +159,12 @@
   <div class="top">
     <h1>Homework Tracker <span class="muted" id="who"></span></h1>
     <div id="paste" contenteditable="true"></div>
-    <div class="topbtns"><button id="printList" title="Print the grid on one landscape page">🖨 Print list</button><button id="printCal" title="Print a two-week calendar">🖨 Print calendar</button><button id="settingsBtn" title="Settings">⚙ Settings</button></div>
+    <div class="topbtns"><div class="printwrap"><button id="printList" aria-haspopup="true" aria-expanded="false">🖨 Print list ▾</button>
+      <div class="pmenu" id="pmenu" hidden>
+        <button class="opt" data-detail="0"><b>Compact</b><span>The grid on one landscape page</span></button>
+        <button class="opt" data-detail="1"><b>With assignment details</b><span>Every bullet and link, still by class. 6+ classes split across pages.</span></button>
+        <hr><div class="rng">Include: <label><input type="radio" name="prange" value="all" checked> Everything</label><label><input type="radio" name="prange" value="next"> Next school day</label></div>
+      </div></div><button id="printCal" title="Print a two-week calendar">🖨 Print calendar</button><button id="settingsBtn" title="Settings">⚙ Settings</button></div>
   </div>
   <details class="about" id="about">
     <summary>Turns your student’s Praxi homework feed into one checklist: every class, sorted by due date.</summary>
@@ -159,7 +180,7 @@
           <li>Lets you check items off and remembers them. Overdue items rise to the top.</li>
           <li>Flags anything a teacher edited after you checked it, items whose due date moved, and tests and quizzes (📝).</li>
           <li>Finds your student’s row in presentation sign-ups and adds a parent-signature checkbox where you need one (⚙ Settings).</li>
-          <li>Prints on one landscape page: a <b>checklist</b> of the grid, or a two-week <b>calendar</b> for the fridge.</li>
+          <li>Prints a <b>checklist</b> of the grid (compact on one page, or with every assignment’s details), or a two-week <b>calendar</b> for the fridge.</li>
         </ul>
       </section>
       <section>
@@ -222,7 +243,7 @@
   <div id="driveBar" hidden><span id="driveMsg"></span><button id="driveBtn"></button></div>
   <div id="out"></div>
   <div class="foot"><span id="driveStatus"></span><button id="driveSetup">Set up folder save</button>
-    <span>· Not affiliated with Praxi. Everything stays on your computer. · <a href="https://github.com/ricobert1/praxi-homework-tracker" target="_blank" rel="noopener">About / updates</a> · <a href="https://github.com/ricobert1/praxi-homework-tracker/blob/main/CHANGELOG.md" target="_blank" rel="noopener" id="ver">v1.2.0</a></span>
+    <span>· Not affiliated with Praxi. Everything stays on your computer. · <a href="https://github.com/ricobert1/praxi-homework-tracker" target="_blank" rel="noopener">About / updates</a> · <a href="https://github.com/ricobert1/praxi-homework-tracker/blob/main/CHANGELOG.md" target="_blank" rel="noopener" id="ver">v1.3.0</a></span>
     <button id="issueBtn">Raise an issue</button></div>
 </main>
 <div id="print"></div>
@@ -863,45 +884,78 @@ const heading = () => (state.settings.names || []).length ? `${PraxiHW.poss(Prax
 const isPaper = it => !it.notMine && (/presentation/i.test(it.title) || it.flags.some(f => f.type === 'mine')
   || /\bbring\b[^.]*\b(draft|paper|essay|copy)\b/i.test([it.title, ...it.details.map(d => d.text)].join(' ')));
 
-function printList() {
+// opts.detail: show each assignment's bullets, links and full presentation topic.
+//   Up to 5 classes stay on one grid; 6+ split into pages of even size (8 → 4 + 4), same date rows on each.
+// opts.range: 'all' (everything the screen grid shows) or 'next' (overdue + next school day only).
+const shortUrl = href => { try { const u = new URL(href); return u.hostname.replace(/^www\./, '') + (u.pathname.length > 1 ? '/…' : ''); } catch (e) { return href; } };
+function classPages(classes, detail) {
+  if (!detail || classes.length <= 5) return [classes];
+  const pages = Math.ceil(classes.length / 5), per = Math.ceil(classes.length / pages), out = [];
+  for (let i = 0; i < classes.length; i += per) out.push(classes.slice(i, i + per));
+  return out;
+}
+function printList(opts = {}) {
+  const detail = !!opts.detail, range = opts.range === 'next' ? 'next' : 'all';
   const P = document.getElementById('print'); P.innerHTML = '';
-  const { st, classes, events, next, rows, today, tomorrow } = gridModel();
-  const head = el('div', 'pl-head'); head.appendChild(el('h1', null, heading())); head.appendChild(el('span', null, 'Printed ' + stamp()));
-  P.appendChild(head);
-  const g = el('div', 'pl-grid'); g.style.gridTemplateColumns = `80px repeat(${classes.length}, 1fr)`;
-  g.appendChild(el('div', 'pl-hdr', ''));
-  classes.forEach(c => { const h = el('div', 'pl-hdr', shortCls(c)); h.appendChild(el('small', null, teacher(c))); g.appendChild(h); });
-  for (const r of rows) {
-    const nx = r.kind === 'date' && r.date === next ? ' pl-next' : '';
-    const lbl = el('div', 'pl-lbl' + nx,
-      r.kind === 'over' ? 'Overdue' : r.kind === 'undated' ? 'No due date' : (r.date === next ? '▶ ' : '') + fmtDate(r.date));
-    if (r.kind === 'date') { const t = r.date === today ? 'today' : r.date === tomorrow ? 'tomorrow' : r.date === next ? 'next school day' : ''; if (t) lbl.appendChild(el('small', null, t)); }
-    g.appendChild(lbl);
-    for (const c of classes) {
-      const cell = el('div', nx.trim());
-      const its = r.items.filter(i => i.cls === c && st(i) !== 'notmine').sort(byDue);   // paper copy: the student's items only
-      const evs = r.kind === 'date' ? events.filter(e => e.cls === c && e.date === r.date) : [];
-      const { testIds, extra } = matchEvents(its, evs);
-      its.forEach(it => {
-        const s = st(it), row = el('div', 'pl-it');
-        row.appendChild(el('span', 'pl-box', s === 'needsign' ? '☑' : '☐'));
-        const body = el('div');
-        body.appendChild(el('div', testIds.has(it.id) ? 'pl-ev' : null, (testIds.has(it.id) ? '📝 ' : '') + displayTitle(it)));
-        const sub = [];
-        if (r.kind === 'over') sub.push('was due ' + fmtDate(it.due));
-        if (s === 'needsign') sub.push('done — needs parent signature');
-        else if (PraxiHW.needsSign(it)) sub.push('☐ parent sign-off');
-        if (s === 'changed') sub.push('teacher changed this — re-read');
-        it.flags.forEach(f => sub.push((f.type === 'mine' ? '★ ' : '⚠ ') + f.text.replace(/\d{4}-\d{2}-\d{2}/g, m => fmtDate(m))));
-        if (sub.length) body.appendChild(el('div', 'pl-sub', sub.join(' · ')));
-        row.appendChild(body); cell.appendChild(row);
-      });
-      extra.forEach(e => cell.appendChild(el('div', 'pl-ev', '📝 ' + e.text)));
-      g.appendChild(cell);
+  P.dataset.flow = detail ? '1' : '';                    // detailed may run to several pages; compact shrinks to one
+  const { st, classes, events, next, rows: allRows, today, tomorrow } = gridModel();
+  const rows = range === 'next' ? allRows.filter(r => r.kind === 'over' || r.date === next) : allRows;
+  const pages = classPages(classes, detail);
+  pages.forEach((cls, pi) => {
+    const pg = el('div', 'pl-page');
+    const head = el('div', 'pl-head');
+    head.appendChild(el('h1', null, heading() + (range === 'next' && next ? ' — ' + fmtDate(next) : '')
+      + (pages.length > 1 ? `  ·  part ${pi + 1} of ${pages.length}: ${cls.map(shortCls).join(', ')}` : '')));
+    head.appendChild(el('span', null, 'Printed ' + stamp()));
+    pg.appendChild(head);
+    const g = el('div', 'pl-grid' + (detail ? ' pl-detail' : '')); g.style.gridTemplateColumns = `80px repeat(${cls.length}, 1fr)`;
+    g.appendChild(el('div', 'pl-hdr', ''));
+    cls.forEach(c => { const h = el('div', 'pl-hdr', shortCls(c)); h.appendChild(el('small', null, teacher(c))); g.appendChild(h); });
+    for (const r of rows) {
+      const nx = r.kind === 'date' && r.date === next ? ' pl-next' : '';
+      const lbl = el('div', 'pl-lbl' + nx,
+        r.kind === 'over' ? 'Overdue' : r.kind === 'undated' ? 'No due date' : (r.date === next ? '▶ ' : '') + fmtDate(r.date));
+      if (r.kind === 'date') { const t = r.date === today ? 'today' : r.date === tomorrow ? 'tomorrow' : r.date === next ? 'next school day' : ''; if (t) lbl.appendChild(el('small', null, t)); }
+      g.appendChild(lbl);
+      for (const c of cls) {
+        const cell = el('div', nx.trim());
+        const its = r.items.filter(i => i.cls === c && st(i) !== 'notmine').sort(byDue);   // paper copy: the student's items only
+        const evs = r.kind === 'date' ? events.filter(e => e.cls === c && e.date === r.date) : [];
+        const { testIds, extra } = matchEvents(its, evs);
+        its.forEach(it => {
+          const s = st(it), row = el('div', 'pl-it');
+          row.appendChild(el('span', 'pl-box', s === 'needsign' ? '☑' : '☐'));
+          const body = el('div');
+          // with details shown, "Writing:" stays as is (its bullets follow) instead of borrowing the first bullet
+          body.appendChild(el('div', testIds.has(it.id) ? 'pl-ev' : null, (testIds.has(it.id) ? '📝 ' : '') + (detail ? it.title : displayTitle(it))));
+          const sub = [];
+          if (r.kind === 'over') sub.push('was due ' + fmtDate(it.due));
+          if (s === 'needsign') sub.push('done — needs parent signature');
+          else if (PraxiHW.needsSign(it)) sub.push('☐ parent sign-off');
+          if (s === 'changed') sub.push('teacher changed this — re-read');
+          it.flags.forEach(f => {
+            if (detail && f.type === 'mine') sub.push(`★ ${PraxiHW.display()} presents: ` + it.presenters.filter(p => p.mine).map(p => p.topic).join('; '));
+            else sub.push((f.type === 'mine' ? '★ ' : '⚠ ') + f.text.replace(/\d{4}-\d{2}-\d{2}/g, m => fmtDate(m)));
+          });
+          if (sub.length) body.appendChild(el('div', 'pl-sub', sub.join(' · ')));
+          if (detail) {
+            if (it.details.length) {
+              const ul = el('ul', 'pl-det');
+              it.details.forEach(d => { const li = el('li', null, d.text); li.style.marginLeft = (d.depth * 12) + 'px'; ul.appendChild(li); });
+              body.appendChild(ul);
+            }
+            it.links.forEach(l => body.appendChild(el('div', 'pl-sub', '🔗 ' + l.text + ' — ' + shortUrl(l.href))));
+          }
+          row.appendChild(body); cell.appendChild(row);
+        });
+        extra.forEach(e => cell.appendChild(el('div', 'pl-ev', '📝 ' + e.text)));
+        g.appendChild(cell);
+      }
     }
-  }
-  P.appendChild(g);
-  if (!rows.length) P.appendChild(el('p', null, 'Nothing to do.'));
+    pg.appendChild(g);
+    P.appendChild(pg);
+  });
+  if (!rows.length) P.appendChild(el('p', null, range === 'next' ? 'Nothing due next school day.' : 'Nothing to do.'));
   fitAndPrint(P);
 }
 
@@ -912,7 +966,7 @@ function calWeeks() {
   return [0, 7].map(o => [0, 1, 2, 3, 4, 5].map(i => PraxiHW.addDays(mon, o + i)));
 }
 function printCalendar() {
-  const P = document.getElementById('print'); P.innerHTML = '';
+  const P = document.getElementById('print'); P.innerHTML = ''; P.dataset.flow = '';
   const eff = PraxiHW.effDate(), st = it => PraxiHW.statusOf(it, state.status, eff);
   const weeks = calWeeks(), first = weeks[0][0], last = weeks[1][5];
   P.appendChild(el('div', 'cal-title', heading().toUpperCase() + ' CALENDAR'));
@@ -949,7 +1003,7 @@ function printCalendar() {
 // Calendar boxes are fixed-height; a box that overflows says so instead of silently cutting.
 function fitAndPrint(P) {
   P.style.zoom = ''; P.style.width = ''; P.className = 'measure';
-  if (!P.querySelector('.cal')) {        // shrinking widens the text lines, so re-measure at each step
+  if (!P.querySelector('.cal') && !P.dataset.flow) {        // shrinking widens the text lines, so re-measure at each step
     let z = 1;
     const fits = () => { P.style.zoom = z; P.style.width = (PAGE_W / z) + 'px'; return P.getBoundingClientRect().height <= PAGE_H; };
     while (!fits() && z > 0.7) z = Math.round((z - 0.02) * 100) / 100;
@@ -967,7 +1021,7 @@ function fitAndPrint(P) {
 
 /* --- raise an issue: opens GitHub's new-issue page with a starter template --- */
 const REPO = 'https://github.com/ricobert1/praxi-homework-tracker';
-const VERSION = '1.2.0';   // keep in step with package.json, the footer link and CHANGELOG.md
+const VERSION = '1.3.0';   // keep in step with package.json, the footer link and CHANGELOG.md
 function openIssue(kind) {
   const ua = navigator.userAgent;
   const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Other';
@@ -990,7 +1044,22 @@ async function init() {
   paste.addEventListener('blur', e => { if (!PraxiHW.norm(e.target.textContent)) e.target.textContent = PASTE_HINT; });
   document.getElementById('settingsBtn').onclick = openSettings;
   const nothing = () => { const m = document.getElementById('pasteMsg'); m.className = 'msg err'; m.textContent = 'Nothing to print yet. Paste the Praxi page first.'; };
-  document.getElementById('printList').onclick = () => model && model.items.length ? printList() : nothing();
+  // Print list menu: Compact / With details, plus range. Last choice remembered in this browser.
+  const pbtn = document.getElementById('printList'), pmenu = document.getElementById('pmenu');
+  let pref = {}; try { pref = JSON.parse(lsGet('praxihw.printPref')) || {}; } catch (e) { pref = {}; }
+  const markLast = () => pmenu.querySelectorAll('.opt').forEach(o => o.classList.toggle('last', o.dataset.detail === (pref.detail ? '1' : '0')));
+  if (pref.range === 'next') pmenu.querySelector('input[value=next]').checked = true;
+  markLast();
+  const closeMenu = () => { pmenu.hidden = true; pbtn.setAttribute('aria-expanded', 'false'); };
+  pbtn.onclick = e => { e.stopPropagation(); if (!(model && model.items.length)) return nothing(); pmenu.hidden = !pmenu.hidden; pbtn.setAttribute('aria-expanded', String(!pmenu.hidden)); };
+  pmenu.addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', closeMenu);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+  pmenu.querySelectorAll('.opt').forEach(o => o.onclick = () => {
+    pref = { detail: o.dataset.detail === '1', range: pmenu.querySelector('input[name=prange]:checked').value };
+    lsSet('praxihw.printPref', JSON.stringify(pref)); markLast(); closeMenu();
+    printList(pref);
+  });
   document.getElementById('printCal').onclick = () => model && model.items.length ? printCalendar() : nothing();
   document.querySelector('#issue .k2').textContent = IS_MAC ? 'on a Mac: ⌘⇧4, then drag' : 'on Windows: Win+Shift+S, then drag';
   document.getElementById('issueBtn').onclick = () => document.getElementById('issue').showModal();

@@ -28,7 +28,8 @@ Paste again whenever you like (daily, or a few times a week). Overlapping pastes
 - **Tests and quizzes** are pulled out of the text and marked 📝, including "this Friday" / "next Tuesday" wording.
 - **Presentation sign-ups**: highlights your student's row and fades the ones that aren't theirs.
 - **Parent signature checkbox**: in ⚙ Settings, pick the classes where every assignment needs a parent signature, plus whether presentations do.
-- **Print list / Print calendar**: a one-page landscape checklist of the grid, or a two-week Mon–Sat wall calendar (homework in orange, papers and presentations in green, 📝 tests).
+- **Print list**: a checklist of the grid, either **compact** on one landscape page or **with assignment details** (every bullet and link, still by class; 6+ classes split into parts). Print everything, or just the next school day.
+- **Print calendar**: a two-week Mon–Sat wall calendar (homework in orange, papers and presentations in green, 📝 tests).
 - **Teacher notes** ("no homework tonight", etc.) are collected in one place.
 - **Up to 8+ classes**: columns narrow to fit, and the date column stays put if you scroll sideways.
 

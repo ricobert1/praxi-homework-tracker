@@ -2,6 +2,18 @@
 
 All notable changes to Homework Tracker for Praxi. Versions follow [semantic versioning](https://semver.org/): new features bump the middle number, fixes bump the last.
 
+## [1.3.0] - 2026-11-24
+
+### Added
+- **Print list now opens a menu** with two choices:
+  - **Compact**: the grid on one landscape page, as before.
+  - **With assignment details**: the same grid by class, but every assignment shows its full bullets, links (as short addresses, e.g. "docs.google.com/…") and your student's full presentation topic. With 6 or more classes the grid is split into even parts (8 → 4 + 4) with the same date rows. The parts share a page when they fit.
+- **Include: Everything / Next school day** for either choice. Next school day prints just Overdue plus tomorrow, which makes a handy nightly sheet.
+- The page remembers your last print choice in this browser.
+
+### Changed
+- In the detailed printout, a title like "Writing:" is kept as is, with its bullets underneath, instead of borrowing the first bullet as the compact view does.
+
 ## [1.2.0] - 2026-11-22
 
 ### Added
@@ -31,6 +43,7 @@ First public release.
 - Saves in the browser, with optional backup and sync to a Google Drive, iCloud or OneDrive folder (Chrome/Edge).
 - Works on Mac and Windows. Data from the original private version carries over automatically.
 
+[1.3.0]: https://github.com/ricobert1/praxi-homework-tracker/releases/tag/v1.3.0
 [1.2.0]: https://github.com/ricobert1/praxi-homework-tracker/commit/9575fc3
 [1.1.0]: https://github.com/ricobert1/praxi-homework-tracker/commit/4356924
 [1.0.0]: https://github.com/ricobert1/praxi-homework-tracker/commit/7d5b8b2
